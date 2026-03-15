@@ -11,22 +11,23 @@ export async function GET(request: Request) {
   );
   
   try {
-    let query = supabase.from('ai_client_profiles')
+    let query = supabase.from('clients')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .limit(50);
 
-    if (search) query = query.or(`nume_client.ilike.%${search}%,telefon_e164.ilike.%${search}%`);
+    if (search) query = query.or(`full_name.ilike.%${search}%,real_phone_e164.ilike.%${search}%,public_alias.ilike.%${search}%`);
 
     const { data, error, count } = await query;
     if (error) throw error;
     
+    // Clients already has id, real_phone_e164, full_name, so no deep mapping needed
     const mappedClients = (data || []).map(c => ({
         ...c,
-        id: c.client_id,
-        full_name: c.nume_client,
-        real_phone_e164: c.telefon_e164,
-        source: c.tip_client
+        id: c.id,
+        full_name: c.full_name || c.public_alias,
+        real_phone_e164: c.real_phone_e164,
+        source: c.source
     }));
     
     return NextResponse.json({ clients: mappedClients, total: count });

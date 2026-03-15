@@ -16,6 +16,8 @@ type Notebook = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extracted_data: Record<string, any>;
   updated_at: string;
+  avatar_url?: string | null;
+  brand_key?: string | null;
 };
 
 const API_BASE = "/api/admin";
@@ -206,23 +208,49 @@ export default function CopilotPage() {
             {notebooks.length === 0 ? (
               <div className="text-center p-4 text-[var(--color-dim)] text-sm">Nu s-au găsit clienți recenți.</div>
             ) : (
-              notebooks.map((n) => (
-                <button
-                  key={n.phone_number}
-                  onClick={() => setActiveSession(n.phone_number)}
-                  className={`w-full text-left p-3 rounded-xl transition-all border ${
-                    activeSession === n.phone_number 
-                      ? "bg-purple-600/20 border-purple-500/50" 
-                      : "bg-black/20 border-transparent hover:bg-white/5 hover:border-[var(--color-border)]"
-                  }`}
-                >
-                  <div className="font-semibold text-sm mb-1">{n.phone_number}</div>
-                  <div className="text-[10px] text-[var(--color-dim)] flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                    {n.template_key}
-                  </div>
-                </button>
-              ))
+              notebooks.map((n) => {
+                let badgeColor = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+                if (n.brand_key?.includes("KASSY")) badgeColor = "bg-pink-500/20 text-pink-400 border-pink-500/30";
+                else if (n.brand_key?.includes("WONDER")) badgeColor = "bg-blue-500/20 text-blue-400 border-blue-500/30";
+                else if (n.brand_key?.includes("UNIVERS")) badgeColor = "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+
+                return (
+                  <button
+                    key={n.phone_number}
+                    onClick={() => setActiveSession(n.phone_number)}
+                    className={`w-full text-left p-3 rounded-xl transition-all border flex gap-3 items-center ${
+                      activeSession === n.phone_number 
+                        ? "bg-purple-600/20 border-purple-500/50" 
+                        : "bg-black/20 border-transparent hover:bg-white/5 hover:border-[var(--color-border)]"
+                    }`}
+                  >
+                    {/* Avatar */}
+                    <div className="w-10 h-10 shrink-0 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden flex items-center justify-center relative">
+                       {n.avatar_url ? (
+                         <img src={n.avatar_url} alt="avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                       ) : (
+                         <span className="text-xl opacity-50">👤</span>
+                       )}
+                    </div>
+                    
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm mb-1 truncate">{n.phone_number}</div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {n.brand_key && (
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded border uppercase tracking-wider ${badgeColor}`}>
+                            {n.brand_key.replace("SESSION_", "").replace("BRAND_", "")}
+                          </span>
+                        )}
+                        <div className="text-[10px] text-[var(--color-dim)] flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                          Live
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })
             )}
           </div>
         </section>

@@ -17,16 +17,44 @@ export async function GET() {
     if (error) {
       console.warn("Notebooks table not found. Falling back to ai_client_profiles...", error.message);
       
-      const { data: clients } = await supabase.from('ai_client_profiles')
-        .select('*')
+      const { data: recentMsgs } = await supabase.from('messages')
+        .select('conversation_id, created_at, conversations(client_id)')
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(100);
         
-      notebooks = (clients || []).map(c => ({
-         phone_number: c.telefon_e164 || c.nume_client || c.client_id,
-         template_key: 'fallback_live_feed',
-         extracted_data: {}
-      }));
+      const uniqueClientIds = [];
+      if (recentMsgs) {
+         for (const msg of recentMsgs) {
+             const cid = (msg.conversations as any)?.client_id;
+             if (cid && !uniqueClientIds.includes(cid)) {
+                 uniqueClientIds.push(cid);
+             }
+             if (uniqueClientIds.length >= 20) break;
+         }
+      }
+
+      if (uniqueClientIds.length > 0) {
+          const { data: clientsRaw } = await supabase.from('clients')
+              .select('id, real_phone_e164, full_name, public_alias, avatar_url, brand_key')
+              .in('id', uniqueClientIds);
+              
+          if (clientsRaw) {
+              const clientMap = new Map(clientsRaw.map(c => [c.id, c]));
+              
+              for (const cid of uniqueClientIds) {
+                  const c = clientMap.get(cid);
+                  if (c) {
+                      notebooks.push({
+                         phone_number: c.real_phone_e164 || c.public_alias || c.id,
+                         template_key: 'Live Chat',
+                         extracted_data: {},
+                         avatar_url: c.avatar_url,
+                         brand_key: c.brand_key
+                      });
+                  }
+              }
+          }
+      }
     } else {
       notebooks = data || [];
     }
