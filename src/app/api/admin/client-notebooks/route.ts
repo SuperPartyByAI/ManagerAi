@@ -17,19 +17,18 @@ export async function GET() {
     if (error) {
       console.warn("Notebooks table not found. Falling back to ai_client_profiles...", error.message);
       
-      const { data: recentMsgs } = await supabase.from('messages')
-        .select('conversation_id, created_at, conversations(client_id)')
-        .order('created_at', { ascending: false })
-        .limit(100);
+      const { data: recentConvs } = await supabase.from('conversations')
+        .select('client_id, updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(50);
         
       const uniqueClientIds = [];
-      if (recentMsgs) {
-         for (const msg of recentMsgs) {
-             const cid = (msg.conversations as any)?.client_id;
+      if (recentConvs) {
+         for (const conv of recentConvs) {
+             const cid = conv.client_id;
              if (cid && !uniqueClientIds.includes(cid)) {
                  uniqueClientIds.push(cid);
              }
-             if (uniqueClientIds.length >= 20) break;
          }
       }
 
