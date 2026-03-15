@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
 
@@ -18,6 +20,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         
     if (convErr) throw convErr;
     
+    console.log("Next route fetching id:", id, "Found convs:", convs?.length);
     const convIds = convs?.map(c => c.id) || [];
     let latestMessages: any[] = [];
     
@@ -30,7 +33,10 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         latestMessages = msgs || [];
     }
     
-    return NextResponse.json({ latest_messages: latestMessages });
+    return NextResponse.json({ 
+      latest_messages: latestMessages,
+      debug: { id, convCount: convs?.length }
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
