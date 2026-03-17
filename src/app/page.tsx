@@ -8,6 +8,7 @@ import VertexConfig from "../components/VertexConfig";
 import CollaboratorsManager from "../components/CollaboratorsManager";
 import EmployeesManager from "../components/EmployeesManager";
 import EventsBoard from "../components/EventsBoard";
+import CostumesManager from "../components/CostumesManager";
 
 type RoleDef = { id: string; title: string; detalii: string[] };
 type ClientEvent = { id: string; role_title: string; event_details: Record<string, string>; total_amount: number; notes: string; created_at: string; status?: string };
@@ -58,7 +59,7 @@ export default function CopilotPage() {
   const [activeSession, setActiveSession] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
-  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "vertex">("whatsapp");
+  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex">("whatsapp");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Add Party state
@@ -505,6 +506,18 @@ export default function CopilotPage() {
             <div className="text-[9px] font-bold uppercase tracking-wider">Evenimente</div>
           </button>
 
+          <button
+            onClick={() => setCurrentView("costumes")}
+            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
+              currentView === "costumes"
+                ? "bg-pink-500/20 text-pink-400 border border-pink-500/50 shadow-[0_0_15px_rgba(236,72,153,0.2)]"
+                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
+            }`}
+          >
+            <div className="text-2xl drop-shadow-md">🎭</div>
+            <div className="text-[9px] font-bold uppercase tracking-wider">Costume</div>
+          </button>
+
           <div className="w-8 border-t border-[var(--color-border)]"></div>
 
           <button
@@ -930,6 +943,9 @@ export default function CopilotPage() {
 
         {/* Events Board Module */}
         {currentView === "events" && <EventsBoard />}
+
+        {/* Costumes Manager Module */}
+        {currentView === "costumes" && <CostumesManager />}
 
         {/* Vertex AI Config Module */}
         {currentView === "vertex" && <VertexConfig />}
