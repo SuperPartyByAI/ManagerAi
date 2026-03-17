@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import RolesManager from "../components/RolesManager";
 import VertexConfig from "../components/VertexConfig";
@@ -553,7 +555,7 @@ export default function CopilotPage() {
                     <div className="w-10 h-10 shrink-0 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden flex items-center justify-center relative">
                        {n.avatar_url ? (
                          /* eslint-disable-next-line @next/next/no-img-element */
-                         <img src={n.avatar_url} alt="avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                         <img src={n.avatar_url} alt="avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
                        ) : (
                          <span className="text-xl opacity-50">👤</span>
                        )}
@@ -604,7 +606,7 @@ export default function CopilotPage() {
                    <div className="w-16 h-16 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden flex items-center justify-center relative shrink-0">
                       {activeNotebook?.avatar_url ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={activeNotebook.avatar_url} alt="avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        <img src={activeNotebook.avatar_url} alt="avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
                       ) : (
                         <span className="text-3xl opacity-50">👤</span>
                       )}
