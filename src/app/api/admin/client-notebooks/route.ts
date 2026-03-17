@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
@@ -8,54 +10,72 @@ export async function GET() {
   );
   
   try {
-    let notebooks = [];
-    const { data, error } = await supabase.from('ai_client_notebooks')
-      .select('*, template:ai_notebook_templates(json_schema)')
+    const notebooks: Record<string, unknown>[] = [];
+    
+    // 1. Fetch recent conversations to know which clients are active
+    const { data: recentConvs, error: convErr } = await supabase.from('conversations')
+      .select('client_id, updated_at')
       .order('updated_at', { ascending: false })
-      .limit(50);
+      .limit(300);
       
-    if (error) {
-      console.warn("Notebooks table not found. Falling back to ai_client_profiles...", error.message);
-      
-      const { data: recentConvs } = await supabase.from('conversations')
-        .select('client_id, updated_at')
-        .order('updated_at', { ascending: false })
-        .limit(50);
-        
-      const uniqueClientIds = [];
-      if (recentConvs) {
-         for (const conv of recentConvs) {
-             const cid = conv.client_id;
-             if (cid && !uniqueClientIds.includes(cid)) {
-                 uniqueClientIds.push(cid);
-             }
-         }
-      }
+    if (convErr) throw convErr;
 
-      if (uniqueClientIds.length > 0) {
-          const { data: clientsRaw } = await supabase.from('clients')
-              .select('id, real_phone_e164, full_name, public_alias, avatar_url, brand_key')
-              .in('id', uniqueClientIds);
-              
-          if (clientsRaw) {
-              const clientMap = new Map(clientsRaw.map(c => [c.id, c]));
-              
-              for (const cid of uniqueClientIds) {
-                  const c = clientMap.get(cid);
-                  if (c) {
-                      notebooks.push({
-                         phone_number: c.real_phone_e164 || c.public_alias || c.id,
-                         template_key: 'Live Chat',
-                         extracted_data: {},
-                         avatar_url: c.avatar_url,
-                         brand_key: c.brand_key
-                      });
-                  }
-              }
-          }
-      }
-    } else {
-      notebooks = data || [];
+    const uniqueClientIds: string[] = [];
+    if (recentConvs) {
+       for (const conv of recentConvs) {
+           const cid = conv.client_id;
+           if (cid && !uniqueClientIds.includes(cid)) {
+               uniqueClientIds.push(cid);
+           }
+       }
+    }
+
+    if (uniqueClientIds.length > 0) {
+        // 2. Fetch clients to get basic info (phone, alias, avatar)
+        const { data: clientsRaw } = await supabase.from('clients')
+            .select('id, real_phone_e164, full_name, public_alias, avatar_url, brand_key')
+            .in('id', uniqueClientIds);
+            
+        // 3. Fetch active draft events from NEW ai_client_events table
+        const { data: activeEvents } = await supabase.from('ai_client_events')
+            .select('client_id, servicii_cerute, status')
+            .in('client_id', uniqueClientIds)
+            .eq('status', 'draft');
+            
+        const eventsMap = new Map(activeEvents?.map(e => [e.client_id, e.servicii_cerute]) || []);
+
+        if (clientsRaw) {
+            const clientMap = new Map(clientsRaw.map(c => [c.id, c]));
+            const seenPhones = new Set<string>();
+            const seenAliases = new Set<string>();
+            
+            for (const cid of uniqueClientIds) {
+                const c = clientMap.get(cid);
+                if (c) {
+                    if (!c.real_phone_e164) continue; // Skip groups
+                    
+                    const phoneNumber = c.real_phone_e164;
+                    const alias = c.public_alias || c.full_name || null;
+                    
+                    if (!seenPhones.has(phoneNumber) && (!alias || !seenAliases.has(alias))) {
+                        seenPhones.add(phoneNumber);
+                        if (alias) seenAliases.add(alias);
+                        
+                        // Structure to match what the frontend expects today
+                        notebooks.push({
+                           client_id: cid,
+                           phone_number: phoneNumber,
+                           alias: alias,
+                           template_key: 'Live Chat',
+                           // We merge the requested services here so UI column 3 can read it
+                           extracted_data: eventsMap.get(cid) || {}, 
+                           avatar_url: c.avatar_url,
+                           brand_key: c.brand_key
+                        } as never);
+                    }
+                }
+            }
+        }
     }
     
     return NextResponse.json({ notebooks });

@@ -9,9 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google-cloud/vertexai": "^1.10.0",
     "@google/genai": "^1.45.0",
     "@supabase/supabase-js": "^2.99.1",
     "dotenv": "^17.3.1",
+    "google-auth-library": "^10.6.1",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"

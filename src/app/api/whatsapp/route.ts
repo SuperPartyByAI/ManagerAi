@@ -2,11 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
-// Import the legacy AI orchestration pipeline we copied over
-// We use require to bypass some strict TS module resolution issues with .mjs in Next if any
-// @ts-ignore
-import { processConversation } from '../../../backend/orchestration/processConversation.mjs';
-
+// Removed legacy orchestration import
 const DEBOUNCE_MS = parseInt(process.env.AI_DEBOUNCE_MS || '15000', 10);
 
 // In-memory debounce state (Works well for local/VPS deployment, less ideal for Serverless)
@@ -64,14 +60,125 @@ export async function POST(req: Request) {
 
     const entry = existing || { latestMessageId: message_id, count: 1, timer: null };
     
-    entry.timer = setTimeout(() => {
+    entry.timer = setTimeout(async () => {
       debounceTimers.delete(conversation_id);
       console.log(`[Debounce] Firing pipeline for ${conversation_id} (coalesced ${entry.count} msgs)`);
       
-      // Execute the AI pipeline
-      processConversation(conversation_id, entry.latestMessageId).catch((err: any) => {
-          console.error('[Next.js Webhook Pipeline Error]', err);
-      });
+      try {
+          // 1. Resolve client via conversation
+          const { data: conv } = await supabase.from('conversations').select('client_id').eq('id', conversation_id).single();
+          if (!conv) return;
+          const clientId = conv.client_id;
+
+          const userText = content?.toLowerCase() || '';
+          
+          // 2. REAL GEMINI: Extract services from user text
+          if (userText.trim().length > 0) {
+              const geminiKey = process.env.GEMINI_API_KEY;
+              if (!geminiKey) {
+                  console.error('[AI WEBHOOK API] No GEMINI_API_KEY found in env');
+                  return;
+              }
+
+              // Always fetch existing draft to give context to Gemini
+              const { data: existingDraft } = await supabase.from('ai_client_events')
+                  .select('id, servicii_cerute')
+                  .eq('client_id', clientId)
+                  .eq('status', 'draft')
+                  .maybeSingle();
+
+              // Fetch up to 100 messages from ALL conversations of this client to act as the global Notebook
+              const { data: clientConvs } = await supabase.from('conversations').select('id').eq('client_id', clientId);
+              const convIds = clientConvs && clientConvs.length > 0 ? clientConvs.map(c => c.id) : [conversation_id];
+
+              const { data: recentMsgs } = await supabase.from('messages')
+                  .select('content, sender_type, created_at')
+                  .in('conversation_id', convIds)
+                  .order('created_at', { ascending: false })
+                  .limit(100);
+                  
+              // Sort the messages chronologically and append the current new message at the end
+              const historyStr = (recentMsgs || []).reverse().map(m => {
+                 const time = new Date(m.created_at).toLocaleTimeString('ro-RO', {hour: '2-digit', minute:'2-digit'});
+                 const role = m.sender_type === 'ai' || m.sender_type === 'operator' ? 'Compania' : 'Clientul';
+                 return `[${time}] ${role}: ${m.content}`;
+              }).join('\n');
+
+              console.log(`[AI WEBHOOK] Calling Gemini 1.5 Flash 8B for ${clientId} with history context...`);
+              
+              const systemPrompt = `Extrageți serviciile cerute din textul clientului privind organizarea unui eveniment (petreceri copii/botez).
+Analizează întreaga istorie a conversației pentru a deduce datele evenimentului (data, ora, număr copii, etc) chair dacă ele au fost menționate de client în mesaje anterioare.
+Tu extragi datele strict în format JSON care să poată fi direct salvat în baza de date.
+Folosești DOAR următoarele structuri permise și cheile exacte dacă sunt menționate sau deduse clar din text. Dacă clientul "nu mai vrea" sau anulează un serviciu, setează "adaugat": false pentru acel bloc.
+Structuri permise în root JSON (adaugate dacă reies din text):
+- "animatori": { "adaugat": true/false, "personaj": string, "nume_copil": string, "varsta_copiilor": string, "numar_copii": string, "metoda_plata": string, "data": string, "ora": string, "adresa": string }
+- "baloane": { "adaugat": true/false, "tip_baloane": string, "culori_preferate": [string] }
+- "ursitoare": { "adaugat": true/false, "nume_copil": string }
+
+Dacă datele lipsesc dintr-un bloc permis pe care clientul îl cere, lasă proprietățile nested lipsă, nu le pune null. Nu inventa date.
+Starea curentă a serviciilor în baza de date: ${JSON.stringify(existingDraft?.servicii_cerute || {})}
+
+## ISTORICUL CONVERSATIEI RECENTE (pentru context):
+${historyStr}
+
+## ULTIMUL MESAJ PRIMIT:
+${userText}`;
+
+              try {
+                  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash-8b';
+                  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify({
+                       contents: [{ role: "user", parts: [{ text: "Extrage datele ținând cont de istoricul furnizat în instrucțiuni, bazându-te în special pe ultimul mesaj." }] }],
+                       systemInstruction: { role: "system", parts: [{ text: systemPrompt }] },
+                       generationConfig: { responseMimeType: "application/json", temperature: 0.1 }
+                     })
+                  });
+
+                  if (!res.ok) {
+                      const errText = await res.text();
+                      console.error('[AI WEBHOOK API] Gemini Error:', errText);
+                      return;
+                  }
+
+                  const aiData = await res.json();
+                  const extractedText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+                  
+                  if (extractedText) {
+                      let extractedData = {};
+                      try {
+                          extractedData = JSON.parse(extractedText);
+                      } catch (e) {
+                          console.error('[AI WEBHOOK API] Failed to parse JSON from Gemini:', extractedText);
+                          return;
+                      }
+                  
+                  // Only update if the AI actually extracted recognized root keys
+                  if (Object.keys(extractedData).length > 0) {
+                      if (existingDraft) {
+                          await supabase.from('ai_client_events').update({
+                              servicii_cerute: { ...(existingDraft.servicii_cerute || {}), ...extractedData },
+                              updated_at: new Date().toISOString()
+                          }).eq('id', existingDraft.id);
+                          console.log(`[AI WEBHOOK] Updated draft via Gemini for ${clientId}`, extractedData);
+                      } else {
+                          await supabase.from('ai_client_events').insert({
+                              client_id: clientId,
+                              status: 'draft',
+                              servicii_cerute: extractedData
+                          });
+                          console.log(`[AI WEBHOOK] Created new draft via Gemini for ${clientId}`, extractedData);
+                      }
+                  }
+              }
+              } catch (apiErr: any) {
+                  console.error('[AI WEBHOOK API] Gemini fetch/parse error:', apiErr);
+              }
+          }
+      } catch (err: any) {
+          console.error('[Next.js Webhook Mock Pipeline Error]', err);
+      }
       
     }, DEBOUNCE_MS);
 
