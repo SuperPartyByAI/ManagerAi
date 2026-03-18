@@ -31,7 +31,7 @@ export async function POST(req: Request) {
         }
 
         // Use Gemini Flash with vision capabilities
-        const model = "gemini-2.0-flash";
+        const model = "gemini-2.0-flash-lite";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
         const prompt = `You are an EXTREMELY STRICT identity verification security system. You must protect against fraud. Analyze these two images with maximum suspicion.

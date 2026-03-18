@@ -125,7 +125,7 @@ ${historyStr}
 ${userText}`;
 
               try {
-                  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash-8b';
+                  const model = 'gemini-2.0-flash-lite';
                   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
                      method: 'POST',
                      headers: { 'Content-Type': 'application/json' },
