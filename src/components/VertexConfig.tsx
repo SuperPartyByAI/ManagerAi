@@ -183,7 +183,7 @@ export default function VertexConfig() {
 
   const sendTest = async () => {
     if (!testInput.trim()) return;
-    if (!aiEnabled) return; // AI is OFF — do nothing
+    // Am scos blocajul de aici: Simulatorul funcționează ACUM indiferent de starea AI-ului Live.
     const msg = testInput.trim();
     const idx = activeConvIdx;
     const phone = activeConv.phone;
@@ -530,21 +530,21 @@ export default function VertexConfig() {
           </div>
 
           <div className="p-3 border-t border-[var(--color-border)] bg-black/40 shrink-0">
-            {!aiEnabled ? (
-              <div className="flex items-center justify-center gap-2 py-3 bg-red-600/20 border border-red-500/30 rounded-lg text-red-400 text-sm font-bold">
-                🔴 AI DEZACTIVAT — nu răspunde la mesaje
-              </div>
-            ) : (
-              <form onSubmit={(e) => { e.preventDefault(); sendTest(); }} className="flex gap-2">
-                <input type="text" value={testInput} onChange={(e) => setTestInput(e.target.value)} disabled={testing}
-                  className="flex-1 bg-black/30 border border-[var(--color-border)] rounded-lg px-3 py-2.5 text-sm text-[var(--color-text)] focus:outline-none focus:border-purple-500/50"
-                  placeholder={`Scrie ca ${activeConv.label}...`} />
-                <button type="submit" disabled={testing || !testInput.trim()}
-                  className="px-4 py-2.5 rounded-lg font-semibold text-sm bg-purple-600 hover:bg-purple-500 text-white transition-all disabled:opacity-50">
-                  {testing ? "⏳" : "🚀"}
-                </button>
-              </form>
+            {/* Status Warning pentru Simulator când AI e oprit din a trimite live */}
+            {!aiEnabled && (
+                <div className="mb-2 flex items-center justify-center gap-2 py-1.5 bg-yellow-600/20 border border-yellow-500/30 rounded text-yellow-500 text-[10px] font-bold uppercase tracking-wide">
+                  ⚠️ Mod Sandbox: Rezultatele de mai jos NU pleacă spre clienți.
+                </div>
             )}
+            <form onSubmit={(e) => { e.preventDefault(); sendTest(); }} className="flex gap-2">
+              <input type="text" value={testInput} onChange={(e) => setTestInput(e.target.value)} disabled={testing}
+                className="flex-1 bg-black/30 border border-[var(--color-border)] rounded-lg px-3 py-2.5 text-sm text-[var(--color-text)] focus:outline-none focus:border-purple-500/50"
+                placeholder={`Simulează ca ${activeConv.label}...`} />
+              <button type="submit" disabled={testing || !testInput.trim()}
+                className="px-4 py-2.5 rounded-lg font-semibold text-sm bg-purple-600 hover:bg-purple-500 text-white transition-all disabled:opacity-50">
+                {testing ? "⏳" : "🚀"}
+              </button>
+            </form>
           </div>
         </section>
       </div>

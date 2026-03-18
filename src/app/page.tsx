@@ -10,6 +10,7 @@ import EmployeesManager from "../components/EmployeesManager";
 import EmployeesBoard from "../components/EmployeesBoard";
 import EventsBoard from "../components/EventsBoard";
 import CostumesManager from "../components/CostumesManager";
+import LiveAgentTestBoard from "../components/LiveAgentTestBoard";
 
 type RoleDef = { id: string; title: string; detalii: string[] };
 type ClientEvent = { id: string; role_title: string; event_details: Record<string, string>; total_amount: number; notes: string; created_at: string; status?: string };
@@ -60,7 +61,7 @@ export default function CopilotPage() {
   const [activeSession, setActiveSession] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
-  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "testclient">("whatsapp");
+  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "testclient" | "live_agent_test">("whatsapp");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Add Party state
@@ -446,7 +447,7 @@ export default function CopilotPage() {
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar Navigation */}
-        <aside className="w-20 shrink-0 border-r border-[var(--color-border)] bg-black/30 flex flex-col items-center py-6 gap-6 z-20">
+        <aside className="w-20 shrink-0 border-r border-[var(--color-border)] bg-black/30 flex flex-col items-center py-6 gap-6 z-20 overflow-y-auto custom-scrollbar">
           <button
             onClick={() => setCurrentView("whatsapp")}
             className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
@@ -529,6 +530,18 @@ export default function CopilotPage() {
           >
             <div className="text-2xl drop-shadow-md">🧪</div>
             <div className="text-[9px] font-bold uppercase tracking-wider">Test AI</div>
+          </button>
+
+          <button
+            onClick={() => setCurrentView("live_agent_test")}
+            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
+              currentView === "live_agent_test"
+                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
+            }`}
+          >
+            <div className="text-2xl drop-shadow-md">👁️</div>
+            <div className="text-[9px] font-bold uppercase tracking-wider text-center">Live<br/>Agent</div>
           </button>
 
           <div className="w-8 border-t border-[var(--color-border)]"></div>
@@ -973,6 +986,9 @@ export default function CopilotPage() {
             />
           </main>
         )}
+
+        {/* Live Agent Test Board */}
+        {currentView === "live_agent_test" && <LiveAgentTestBoard />}
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `

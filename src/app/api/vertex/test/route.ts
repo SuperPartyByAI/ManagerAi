@@ -43,10 +43,7 @@ export async function POST(req: NextRequest) {
       cfg[c.config_key] = c.config_value;
     });
 
-    // Check global AI kill switch
-    if (cfg.ai_enabled === "false") {
-      return NextResponse.json({ reply: null, aiDisabled: true });
-    }
+    // The UI Sandbox Simulator can ALWAYS test the AI, even if the Global WhatsApp Hook is OFF.
 
     const basePrompt = cfg.system_prompt || "Ești asistentul virtual Superparty.";
 
