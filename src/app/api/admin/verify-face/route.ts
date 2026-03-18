@@ -41,11 +41,36 @@ IMAGE 2: Should be a LIVE selfie taken directly by the phone's front camera.
 
 ⚠️ CRITICAL ANTI-FRAUD RULES — READ VERY CAREFULLY:
 
-CHECK 1 - DOCUMENT AUTHENTICITY (Score 0-100):
-- Is Image 1 a real PHYSICAL ID card photographed directly?
-- Look for: physical card edges, hologram reflections, card texture, 3D depth
-- FAIL if: you see a screen (phone, tablet, monitor) showing an ID card
-- FAIL if: the image looks like a printout or photocopy
+CHECK 1 - DOCUMENT AUTHENTICITY & SECURITY ELEMENTS (Score 0-100):
+Verify Image 1 is a REAL, ORIGINAL Romanian Carte de Identitate (CI):
+
+🔍 PHYSICAL DOCUMENT CHECKS:
+- Is it a physical card photographed directly? (not a screen, not a printout)
+- Card must have proper dimensions/proportions of a Romanian CI
+- Look for real card edges, card thickness visible from angle
+- FAIL if: screen pixels, Moiré patterns, LCD glow, phone bezels visible
+
+🇷🇴 ROMANIAN CI SECURITY ELEMENTS (check ALL):
+- "ROUMANIE / ROMANIA" header text at the top
+- Romanian coat of arms (eagle with cross) visible
+- "CARTE DE IDENTITATE" text present
+- Photo area with proper placement and frame
+- Text fields: CNP, Nume/Nom, Prenume/Prénom, Cetățenie, Loc naștere, Domiciliu
+- Valid CNP format (13 digits starting with 1,2,5,6)
+- Validity dates (Emisă de / Valabilitate) in proper format
+- Issuing authority "S.P.C.E.P." or similar
+- MRZ zone at bottom (machine-readable zone with <<< characters)
+- MRZ must start with "IDROU" for Romanian ID
+
+🛡️ ANTI-COUNTERFEIT CHECKS:
+- FAIL if: text appears obviously photoshopped or digitally edited
+- FAIL if: font style is inconsistent or non-standard
+- FAIL if: image appears to be a photocopy (flat lighting, no card depth, grainy)
+- FAIL if: image appears to be a PHOTO OF ANOTHER PHOTO (photo within photo)
+- FAIL if: holographic/security overlay patterns are completely absent or look printed
+- FAIL if: card background patterns/guilloché designs are blurry or missing
+- FAIL if: the card appears hand-drawn, printed on paper, or obviously fake
+- Score 90+ ONLY if all security elements are clearly visible and authentic-looking
 
 CHECK 2 - SELFIE LIVENESS (MOST CRITICAL CHECK - Score 0-100):
 THIS IS THE MOST IMPORTANT CHECK. You MUST detect if the selfie is fake.
@@ -74,12 +99,13 @@ CHECK 3 - IDENTITY MATCH (Score 0-100):
 - ONLY compare if BOTH Check 1 and Check 2 PASS (score >= 60)
 - If either check failed, set identity_score to 0 and same_person to false
 - Look at: face shape, eye spacing, nose shape, mouth, jawline
+- Account for aging (ID photo may be years old), facial hair changes, glasses
 - Score 0-100 (100 = definitely same person)
 
 RESPOND ONLY with valid JSON, no markdown, no extra text:
 {
   "document_score": <number 0-100>,
-  "document_reason": "<brief explanation>",
+  "document_reason": "<brief explanation including which security elements were found/missing>",
   "liveness_score": <number 0-100>,
   "liveness_reason": "<brief explanation>",
   "identity_score": <number 0-100>,
