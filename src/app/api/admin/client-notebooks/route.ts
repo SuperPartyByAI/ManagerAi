@@ -44,6 +44,22 @@ export async function GET() {
             
         const eventsMap = new Map(activeEvents?.map(e => [e.client_id, e.servicii_cerute]) || []);
 
+        // 4. Fetch whatsapp_sessions to resolve SESSION_xxx -> proper brand label
+        const { data: sessions } = await supabase.from('whatsapp_sessions')
+            .select('session_key, label, brand_key');
+        const brandFixMap = new Map<string, string>();
+        if (sessions) {
+          for (const s of sessions) {
+            if (s.brand_key) {
+              // Map wa_xxx -> BRAND
+              brandFixMap.set(s.session_key, s.brand_key);
+              // Map SESSION_XXXXXX -> BRAND  (first 6 chars of session_key after wa_)
+              const shortId = s.session_key.replace('wa_', '').substring(0, 6).toUpperCase();
+              brandFixMap.set('SESSION_' + shortId, s.brand_key);
+            }
+          }
+        }
+
         if (clientsRaw) {
             const clientMap = new Map(clientsRaw.map(c => [c.id, c]));
             const seenPhones = new Set<string>();
@@ -61,6 +77,12 @@ export async function GET() {
                         seenPhones.add(phoneNumber);
                         if (alias) seenAliases.add(alias);
                         
+                        // Resolve brand_key: fix SESSION_xxx and wa_xxx to proper brand name
+                        let resolvedBrand = c.brand_key;
+                        if (resolvedBrand && brandFixMap.has(resolvedBrand)) {
+                          resolvedBrand = brandFixMap.get(resolvedBrand)!;
+                        }
+                        
                         // Structure to match what the frontend expects today
                         notebooks.push({
                            client_id: cid,
@@ -70,7 +92,7 @@ export async function GET() {
                            // We merge the requested services here so UI column 3 can read it
                            extracted_data: eventsMap.get(cid) || {}, 
                            avatar_url: c.avatar_url,
-                           brand_key: c.brand_key
+                           brand_key: resolvedBrand
                         } as never);
                     }
                 }

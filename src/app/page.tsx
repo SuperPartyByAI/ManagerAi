@@ -59,7 +59,7 @@ export default function CopilotPage() {
   const [activeSession, setActiveSession] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
-  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex">("whatsapp");
+  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "testclient">("whatsapp");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Add Party state
@@ -518,6 +518,18 @@ export default function CopilotPage() {
             <div className="text-[9px] font-bold uppercase tracking-wider">Costume</div>
           </button>
 
+          <button
+            onClick={() => setCurrentView("testclient")}
+            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
+              currentView === "testclient"
+                ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)]"
+                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
+            }`}
+          >
+            <div className="text-2xl drop-shadow-md">🧪</div>
+            <div className="text-[9px] font-bold uppercase tracking-wider">Test AI</div>
+          </button>
+
           <div className="w-8 border-t border-[var(--color-border)]"></div>
 
           <button
@@ -949,6 +961,17 @@ export default function CopilotPage() {
 
         {/* Vertex AI Config Module */}
         {currentView === "vertex" && <VertexConfig />}
+
+        {/* Test Client Simulator */}
+        {currentView === "testclient" && (
+          <main className="flex-1 overflow-hidden h-full p-0">
+            <iframe
+              src="/test-client.html"
+              className="w-full h-full border-0"
+              title="Test Client Simulator"
+            />
+          </main>
+        )}
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `

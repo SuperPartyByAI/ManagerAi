@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pre-Rezervări — Superparty AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', sans-serif; background: #0a0b10; color: #e1e4eb; min-height: 100vh; }
+.page { max-width: 1400px; margin: 0 auto; padding: 20px; padding-bottom: 90px; }
+
+/* Header */
+.top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.top-bar h1 { font-size: 20px; font-weight: 800; }
+.top-bar h1 .live { background: #22c55e; color: #000; font-size: 9px; padding: 2px 7px; border-radius: 8px; margin-left: 6px; animation: pulse 2s infinite; vertical-align: middle; font-weight: 800; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.top-right { display: flex; gap: 10px; align-items: center; font-size: 12px; color: #6b7280; }
+.top-right strong { color: #8b5cf6; }
+.btn-refresh { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25); color: #a78bfa; padding: 6px 14px; border-radius: 7px; font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 600; }
+
+/* Cards */
+.cards { display: flex; flex-direction: column; gap: 16px; }
+.card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; overflow: hidden; }
+.card:hover { border-color: rgba(139,92,246,0.2); }
+
+/* Card Top */
+.card-top { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.015); }
+.client-info { display: flex; align-items: center; gap: 10px; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.08); }
+.avatar-ph { width: 36px; height: 36px; border-radius: 50%; background: rgba(139,92,246,0.12); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.cl-name { font-size: 13px; font-weight: 700; color: #fff; }
+.cl-phone { font-size: 11px; color: #a78bfa; font-family: 'JetBrains Mono', monospace; }
+
+/* Event Code Badge */
+.code-badge { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 18px; color: #fbbf24; background: rgba(245,158,11,0.08); border: 2px solid rgba(245,158,11,0.2); padding: 4px 14px; border-radius: 10px; letter-spacing: 1px; }
+.code-badge.cancelled { color: #f87171; border-color: rgba(239,68,68,0.2); background: rgba(239,68,68,0.06); text-decoration: line-through; }
+.code-badge.ready { color: #4ade80; border-color: rgba(34,197,94,0.2); background: rgba(34,197,94,0.06); }
+
+.card-meta { display: flex; align-items: center; gap: 8px; }
+.badge { padding: 3px 10px; border-radius: 12px; font-size: 9px; font-weight: 700; text-transform: uppercase; }
+.badge.draft { background: rgba(245,158,11,0.1); color: #fbbf24; }
+.badge.ready { background: rgba(34,197,94,0.1); color: #4ade80; }
+.badge.error { background: rgba(239,68,68,0.1); color: #f87171; }
+.badge.cancelled { background: rgba(239,68,68,0.08); color: #f87171; }
+.card-time { font-size: 10px; color: #4b5563; }
+
+/* Card Body */
+.card-body { display: grid; grid-template-columns: 1fr 1fr; min-height: 260px; }
+.conv-panel { border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; }
+.panel-title { padding: 6px 14px; font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(0,0,0,0.15); }
+.chat-area { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; max-height: 280px; }
+.chat-area::-webkit-scrollbar { width: 3px; }
+.chat-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+.bubble { max-width: 80%; padding: 6px 10px; border-radius: 10px; font-size: 12px; line-height: 1.35; word-wrap: break-word; }
+.bubble .ts { font-size: 9px; color: rgba(255,255,255,0.2); margin-top: 2px; }
+.bubble.in { align-self: flex-start; background: rgba(255,255,255,0.05); color: #d1d5db; border-bottom-left-radius: 3px; }
+.bubble.out { align-self: flex-end; background: rgba(139,92,246,0.12); color: #c4b5fd; border-bottom-right-radius: 3px; }
+
+/* Details Panel */
+.details-panel { display: flex; flex-direction: column; }
+.details-grid { padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.field-row { display: flex; align-items: center; gap: 6px; }
+.field-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
+.field-label { font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.3px; width: 70px; flex-shrink: 0; }
+.field-value { font-size: 12px; font-weight: 600; color: #e1e4eb; flex: 1; }
+.field-value.ok { color: #4ade80; }
+.field-value.missing { color: #ef4444; font-style: italic; font-weight: 500; }
+.field-value.highlight { color: #fbbf24; }
+.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.dot.g { background: #22c55e; }
+.dot.r { background: #ef4444; }
+.dot.y { background: #f59e0b; }
+
+.error-box { margin: 6px 14px 8px; padding: 6px 8px; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.1); border-radius: 6px; font-size: 11px; color: #fca5a5; }
+.notes-box { margin: 0 14px 8px; padding: 6px 8px; background: rgba(139,92,246,0.06); border-radius: 6px; font-size: 11px; color: #c4b5fd; }
+.comp-wrap { margin: 0 14px 10px; }
+.comp-bar { height: 3px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+.comp-fill { height: 100%; border-radius: 3px; }
+.comp-fill.low { background: #ef4444; }
+.comp-fill.mid { background: #f59e0b; }
+.comp-fill.high { background: #22c55e; }
+.comp-txt { font-size: 9px; color: #4b5563; text-align: right; margin-top: 2px; }
+
+/* Role Header */
+.role-header { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.role-code { font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 16px; color: #fbbf24; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.15); padding: 3px 10px; border-radius: 6px; margin-right: 8px; }
+.role-type { font-size: 12px; color: #9ca3af; font-weight: 600; }
+.role-char { font-size: 15px; font-weight: 800; color: #c4b5fd; margin-top: 3px; }
+
+/* AI Command Bar (fixed bottom-right) */
+.ai-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10,11,16,0.95); backdrop-filter: blur(12px); border-top: 1px solid rgba(139,92,246,0.15); padding: 10px 20px; z-index: 100; }
+.ai-bar-inner { max-width: 1400px; margin: 0 auto; display: flex; gap: 10px; align-items: center; }
+.ai-label { font-size: 11px; font-weight: 700; color: #8b5cf6; white-space: nowrap; }
+.ai-input { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(139,92,246,0.2); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #e1e4eb; font-family: inherit; outline: none; }
+.ai-input:focus { border-color: rgba(139,92,246,0.5); background: rgba(255,255,255,0.06); }
+.ai-input::placeholder { color: #4b5563; font-size: 12px; }
+.ai-btn { background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(139,92,246,0.3)); border: 1px solid rgba(139,92,246,0.35); color: #c4b5fd; padding: 10px 18px; border-radius: 10px; font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 700; white-space: nowrap; }
+.ai-btn:hover { background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.4)); }
+.ai-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ai-result { font-size: 11px; color: #4ade80; white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
+.ai-result.err { color: #f87171; }
+
+.loading { text-align: center; padding: 60px; color: #6b7280; }
+.spin { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(139,92,246,0.2); border-top-color: #8b5cf6; border-radius: 50%; animation: sp 0.7s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+  .card-body { grid-template-columns: 1fr; }
+  .conv-panel { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.05); }
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="top-bar">
+    <h1>📋 Pre-Rezervări <span class="live">LIVE</span></h1>
+    <div class="top-right">
+      <span id="stats">...</span>
+      <button class="btn-refresh" onclick="loadAll()">🔄 Reîncarcă</button>
+    </div>
+  </div>
+  <div id="root"><div class="loading"><div class="spin"></div><br>Se încarcă...</div></div>
+</div>
+
+<!-- AI Command Bar -->
+<div class="ai-bar">
+  <div class="ai-bar-inner">
+    <span class="ai-label">🤖 Comandă AI:</span>
+    <input class="ai-input" id="ai-cmd" placeholder="Ex: modifică ora la 17:00 la 01A · schimbă locația la Romexpo la 03 · anulează 02B" onkeydown="if(event.key==='Enter')runAiCmd()">
+    <button class="ai-btn" id="ai-btn" onclick="runAiCmd()">Aplică ⏎</button>
+    <span class="ai-result" id="ai-result"></span>
+  </div>
+</div>
+
+<script>
+const mainDb = supabase.createClient(
+  'https://jrfhprnuxxfwkwjwdsez.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpyZmhwcm51eHhmd2t3andkc2V6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzAwMjIzMiwiZXhwIjoyMDg4NTc4MjMyfQ.0SoUFRVD3PyQg45QKvBM0yDoGJMNrsV-1KyGX0TA4yI'
+);
+const vertexDb = supabase.createClient(
+  'https://yvfhqadfmjgbzetanfxs.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2ZmhxYWRmbWpnYnpldGFuZnhzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzY2ODg2MywiZXhwIjoyMDg5MjQ0ODYzfQ.b99azJ4MhjLD7c7MXBdABhCIKVp3JWFSyrNSdpE5hZk'
+);
+
+const skip = p => !p || p.startsWith('+40700') || /FIX|PROOF|TEST|DEMO/i.test(p);
+const fmt = p => p ? p.replace(/(\+\d{2})(\d{3})(\d{3})(\d{3})/, '$1 $2 $3 $4') : '?';
+const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+
+let events = [];
+let codeMap = {}; // code -> event
+
+const FIELDS = [
+  { key: 'Data Evenimentului', icon: '📅', label: 'Data' },
+  { key: 'Ora de Început',    icon: '⏰', label: 'Ora' },
+  { key: 'Locația',           icon: '📍', label: 'Locație' },
+  { key: 'Nume Sărbătorit',   icon: '🎂', label: 'Sărbătorit' },
+  { key: 'Vârstă Sărbătorit', icon: '🎈', label: 'Vârstă' },
+  { key: 'Număr Copii',       icon: '👶', label: 'Copii' },
+  { key: 'Durata (ore)',      icon: '⏱️', label: 'Durata' },
+];
+
+// ─── Assign Codes ───
+// Group by client_phone → party number (01, 02...)
+// Each role within same client → letter (A, B, C...)
+function assignCodes(evts) {
+  codeMap = {};
+  const byPhone = {};
+  evts.forEach(e => {
+    if (!byPhone[e.client_phone]) byPhone[e.client_phone] = [];
+    byPhone[e.client_phone].push(e);
+  });
+
+  let partyNum = 1;
+  for (const phone of Object.keys(byPhone)) {
+    const clientEvts = byPhone[phone];
+    const numStr = String(partyNum).padStart(2, '0');
+
+    clientEvts.forEach((e, i) => {
+      const letter = String.fromCharCode(65 + i); // A, B, C...
+      e._partyCode = numStr;          // big badge: 01, 02
+      e._roleLetter = letter;          // small letter: A, B, C
+      e._fullCode = numStr + letter;   // command code: 01A, 02B
+      e._totalRoles = clientEvts.length;
+      codeMap[numStr + letter] = e;
+    });
+    // Also map bare number to first event
+    codeMap[numStr] = clientEvts[0];
+    partyNum++;
+  }
+}
+
+// ─── Load All ───
+async function loadAll() {
+  document.getElementById('root').innerHTML = '<div class="loading"><div class="spin"></div><br>Se încarcă...</div>';
+
+  const { data: evts } = await vertexDb.from('client_events').select('*').order('created_at', { ascending: false });
+  events = (evts || []).filter(e => !skip(e.client_phone));
+  assignCodes(events);
+
+  const phones = [...new Set(events.map(e => e.client_phone))];
+  const clientMap = {};
+  if (phones.length) {
+    const { data: cls } = await mainDb.from('clients').select('id, full_name, real_phone_e164, avatar_url').in('real_phone_e164', phones);
+    (cls || []).forEach(c => { clientMap[c.real_phone_e164] = c; });
+  }
+
+  const clientIds = Object.values(clientMap).map(c => c.id);
+  const convMap = {};
+  const msgMap = {};
+  if (clientIds.length) {
+    const { data: convs } = await mainDb.from('conversations').select('id, client_id, session_id, updated_at').in('client_id', clientIds).order('updated_at', { ascending: false });
+    const convIds = [];
+    (convs || []).forEach(c => {
+      const cl = Object.values(clientMap).find(x => x.id === c.client_id);
+      if (cl) {
+        if (!convMap[cl.real_phone_e164]) convMap[cl.real_phone_e164] = [];
+        convMap[cl.real_phone_e164].push(c);
+        convIds.push(c.id);
+      }
+    });
+    if (convIds.length) {
+      const { data: msgs } = await mainDb.from('messages')
+        .select('conversation_id, content, sender_type, created_at')
+        .in('conversation_id', convIds)
+        .order('created_at', { ascending: true })
+        .limit(500);
+      (msgs || []).forEach(m => {
+        if (!msgMap[m.conversation_id]) msgMap[m.conversation_id] = [];
+        msgMap[m.conversation_id].push(m);
+      });
+    }
+  }
+
+  // Stats
+  const nDraft = events.filter(e => e.status === 'active').length;
+  const nCancel = events.filter(e => e.status === 'cancelled').length;
+  document.getElementById('stats').innerHTML = `<strong>${events.length}</strong> total · <strong style="color:#f59e0b">${nDraft}</strong> active · <strong style="color:#ef4444">${nCancel}</strong> anulate`;
+
+  if (!events.length) {
+    document.getElementById('root').innerHTML = '<div class="loading" style="padding:80px">📭 Niciun eveniment detectat.</div>';
+    return;
+  }
+
+  // Helper functions to avoid nested template literals
+  function renderBubble(m) {
+    const isIn = m.sender_type !== 'agent';
+    const t = new Date(m.created_at);
+    const ts = t.toLocaleDateString('ro-RO',{day:'2-digit',month:'short'}) + ' ' + t.toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit'});
+    return '<div class="bubble ' + (isIn ? 'in' : 'out') + '">' + esc(m.content) + '<div class="ts">' + ts + '</div></div>';
+  }
+
+  function renderField(f, details) {
+    const val = details[f.key];
+    return '<div class="field-row"><span class="field-icon">' + f.icon + '</span><span class="field-label">' + f.label + '</span><span class="field-value ' + (val ? 'ok' : 'missing') + '">' + (val || '❓') + '</span><span class="dot ' + (val ? 'g' : 'r') + '"></span></div>';
+  }
+
+  function renderRole(evt) {
+    const rd = evt.event_details || {};
+    const fc = evt._fullCode || '??';
+    const personaj = rd['Personajul Dorit'];
+    const durata = rd['Durata (ore)'];
+    const statusDot = evt.status === 'cancelled' ? '🔴' : '🟢';
+    let h = '<div class="role-header"><div>' + statusDot + ' <span class="role-code">' + fc + '</span><span class="role-type">' + (evt.role_title || '?') + '</span></div>';
+    h += '<div class="role-char">' + (personaj ? '🎭 ' + personaj : '') + '  ' + (durata ? '⏱️ ' + durata + 'h' : '') + '</div>';
+    h += '</div>';
+    return h;
+  }
+
+  let html = '<div class="cards">';
+
+  // Group events by client_phone → one card per party
+  const byPhone = {};
+  events.forEach(e => {
+    if (!byPhone[e.client_phone]) byPhone[e.client_phone] = [];
+    byPhone[e.client_phone].push(e);
+  });
+
+  for (const [phone, phoneEvts] of Object.entries(byPhone)) {
+    const cl = clientMap[phone] || {};
+    const firstEvt = phoneEvts[0];
+    const partyCode = firstEvt._partyCode || '??';
+
+    // Conversation (shared — show once)
+    const convs = convMap[phone] || [];
+    let allMsgs = [];
+    convs.forEach(c => { allMsgs = allMsgs.concat(msgMap[c.id] || []); });
+    allMsgs.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    // Overall status
+    const hasCancel = phoneEvts.some(e => e.status === 'cancelled');
+    const allComplete = phoneEvts.every(e => {
+      const d = e.event_details || {};
+      const filled = FIELDS.filter(f => d[f.key]).length;
+      return (filled / FIELDS.length) >= 0.75;
+    });
+
+    let badgeClass = 'draft', badgeText = 'DRAFT';
+    if (hasCancel) { badgeClass = 'cancelled'; badgeText = 'ANULAT'; }
+    else if (allComplete) { badgeClass = 'ready'; badgeText = 'COMPLET'; }
+
+    const codeClass = hasCancel ? 'cancelled' : (allComplete ? 'ready' : '');
+
+    const ago = Math.floor((Date.now() - new Date(firstEvt.created_at).getTime()) / 60000);
+    const agoStr = ago < 60 ? ago + 'min' : ago < 1440 ? Math.floor(ago/60) + 'h' : Math.floor(ago/1440) + 'z';
+
+    const commonD = firstEvt.event_details || {};
+    const bubblesHtml = allMsgs.length === 0 ? '<div style="padding:20px;text-align:center;color:#4b5563;font-size:11px">Niciun mesaj</div>' : allMsgs.filter(m => m.content).map(renderBubble).join('');
+    const fieldsHtml = FIELDS.map(f => renderField(f, commonD)).join('');
+    const rolesHtml = phoneEvts.map(renderRole).join('');
+    const totalHtml = firstEvt.total_amount ? '<div class="field-row" style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.04)"><span class="field-icon">💰</span><span class="field-label">Total</span><span class="field-value ok">' + firstEvt.total_amount + ' lei</span></div>' : '';
+
+    // Collect all unique notes from all roles → show once at bottom
+    const allNotes = [...new Set(phoneEvts.map(e => e.notes).filter(Boolean))];
+    const notesHtml = allNotes.length > 0 ? '<div class="notes-box" style="margin-top:8px;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;font-size:11px;color:#d1d5db">📝 ' + allNotes.map(n => esc(n)).join('<br>📝 ') + '</div>' : '';
+
+    html += '<div class="card">'
+      + '<div class="card-top">'
+      +   '<div class="client-info">'
+      +     (cl.avatar_url ? '<img class="avatar" src="' + cl.avatar_url + '" onerror="this.outerHTML=\'<div class=avatar-ph>👤</div>\'" alt="">' : '<div class="avatar-ph">👤</div>')
+      +     '<div><div class="cl-name">' + (cl.full_name || 'Client') + '</div><div class="cl-phone">' + fmt(phone) + '</div></div>'
+      +   '</div>'
+      +   '<div class="code-badge ' + codeClass + '">' + partyCode + '</div>'
+      +   '<div class="card-meta"><span class="badge ' + badgeClass + '">' + badgeText + '</span><span class="card-time">' + agoStr + '</span></div>'
+      + '</div>'
+      + '<div class="card-body">'
+      +   '<div class="conv-panel"><div class="panel-title">💬 conversație (' + allMsgs.length + ' msg)</div><div class="chat-area">' + bubblesHtml + '</div></div>'
+      +   '<div class="details-panel">'
+      +     '<div class="panel-title">🤖 Petrecere ' + partyCode + ' — ' + phoneEvts.length + ' rol(uri)</div>'
+      +     '<div class="details-grid" style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06)">' + fieldsHtml + '</div>'
+      +     rolesHtml
+      +     totalHtml
+      +     notesHtml
+      +   '</div>'
+      + '</div>'
+      + '</div>';
+  }
+  html += '</div>';
+
+  document.getElementById('root').innerHTML = html;
+}
+
+// ─── AI Command ───
+const GEMINI_KEY = 'AIzaSyDUB3Qet6gNUl9Bc_kU-JyqrOmJM1QxhBc';
+
+async function runAiCmd() {
+  const input = document.getElementById('ai-cmd');
+  const btn = document.getElementById('ai-btn');
+  const result = document.getElementById('ai-result');
+  const cmd = input.value.trim();
+  if (!cmd) return;
+
+  btn.disabled = true;
+  btn.textContent = '⏳...';
+  result.className = 'ai-result';
+  result.textContent = '';
+
+  // Build code reference table for AI
+  const codeRef = Object.entries(codeMap).map(([code, evt]) => {
+    const d = evt.event_details || {};
+    return `${code}: ${evt.role_title || '?'} | ${d['Data Evenimentului'] || '?'} | ${d['Ora de Început'] || '?'} | ${d['Locația'] || '?'} | ${d['Personajul Dorit'] || '?'} | tel: ${evt.client_phone}`;
+  }).join('\n');
+
+  const prompt = `Ești asistentul admin-ului Superparty. Ai aceste evenimente active:
+${codeRef}
+
+Comanda adminului: "${cmd}"
+
+REGULI:
+1. Identifică evenimentul din comandă prin COD (ex: "01", "01A", "03B")
+2. Determină ce trebuie modificat
+3. Returnează JSON STRICT cu: {"event_id": "uuid", "updates": {"event_details": {...}, "total_amount": ..., "role_title": ..., "status": ...}}
+4. În "event_id" pune ID-ul REAL al evenimentului
+5. În "updates" pune DOAR câmpurile care se schimbă
+6. Dacă instrucțiunea e "anulează", pune "status": "cancelled"
+7. Chei valide pentru event_details: "Data Evenimentului", "Ora de Început", "Locația", "Personajul Dorit", "Număr Copii", "Durata (ore)", "Nume Sărbătorit", "Vârstă Sărbătorit"
+8. RETURNEAZĂ DOAR JSON, fără text.
+
+ID-urile reale ale evenimentelor:
+${Object.entries(codeMap).map(([code, evt]) => `${code} → ${evt.id}`).join('\n')}`;
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
+      })
+    });
+
+    const data = await res.json();
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    text = text.replaceAll('```json', '').replaceAll('```', '').trim();
+    const parsed = JSON.parse(text);
+
+    if (!parsed.event_id || !parsed.updates) throw new Error('Format invalid');
+
+    // Build update object
+    const updateObj = { updated_at: new Date().toISOString() };
+    if (parsed.updates.event_details) {
+      const existing = events.find(e => e.id === parsed.event_id);
+      updateObj.event_details = { ...(existing?.event_details || {}), ...parsed.updates.event_details };
+    }
+    if (parsed.updates.total_amount !== undefined) updateObj.total_amount = parsed.updates.total_amount;
+    if (parsed.updates.role_title) updateObj.role_title = parsed.updates.role_title;
+    if (parsed.updates.status) updateObj.status = parsed.updates.status;
+    if (parsed.updates.status === 'cancelled') updateObj.event_status = 'cancelled';
+
+    const { error } = await vertexDb.from('client_events').update(updateObj).eq('id', parsed.event_id);
+    if (error) throw error;
+
+    // Find which code was updated
+    const updatedCode = Object.entries(codeMap).find(([, e]) => e.id === parsed.event_id)?.[0] || '?';
+    const changedFields = Object.keys(parsed.updates.event_details || parsed.updates).join(', ');
+    result.className = 'ai-result';
+    result.textContent = `✅ ${updatedCode} actualizat: ${changedFields}`;
+    input.value = '';
+    setTimeout(loadAll, 800);
+  } catch (err) {
+    result.className = 'ai-result err';
+    result.textContent = `❌ ${err.message}`;
+  }
+  btn.disabled = false;
+  btn.textContent = 'Aplică ⏎';
+}
+
+loadAll();
+setInterval(loadAll, 60000);
+</script>
+</body>
+</html>
