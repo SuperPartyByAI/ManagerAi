@@ -7,6 +7,7 @@ import RolesManager from "../components/RolesManager";
 import VertexConfig from "../components/VertexConfig";
 import CollaboratorsManager from "../components/CollaboratorsManager";
 import EmployeesManager from "../components/EmployeesManager";
+import EmployeesBoard from "../components/EmployeesBoard";
 import EventsBoard from "../components/EventsBoard";
 import CostumesManager from "../components/CostumesManager";
 
@@ -950,8 +951,8 @@ export default function CopilotPage() {
         {/* Collaborators Module */}
         {currentView === "collaborators" && <CollaboratorsManager />}
 
-        {/* Employees Module */}
-        {currentView === "employees" && <EmployeesManager />}
+        {/* Employees KYC Board */}
+        {currentView === "employees" && <EmployeesBoard />}
 
         {/* Events Board Module */}
         {currentView === "events" && <EventsBoard />}
