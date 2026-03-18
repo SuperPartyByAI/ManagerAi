@@ -50,6 +50,35 @@ export default function LiveAgentTestBoard() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const shadowEndRef = useRef<HTMLDivElement>(null);
 
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [togglingAi, setTogglingAi] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/vertex/config?brand=GLOBAL")
+      .then(res => res.json())
+      .then(data => {
+        const aiCfg = (data.config || []).find((c: any) => c.config_key === "ai_enabled");
+        if (aiCfg) setAiEnabled(aiCfg.config_value !== "false");
+      })
+      .catch(console.error);
+  }, []);
+
+  const toggleAi = async () => {
+    setTogglingAi(true);
+    const newVal = !aiEnabled;
+    try {
+      await fetch("/api/vertex/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "ai_enabled", value: String(newVal), brand: "GLOBAL" }),
+      });
+      setAiEnabled(newVal);
+    } catch (e) {
+      console.error("Toggle AI:", e);
+    }
+    setTogglingAi(false);
+  };
+
   // Auto-scroll chats
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -194,7 +223,20 @@ export default function LiveAgentTestBoard() {
           <h2 className="font-semibold flex items-center gap-2 text-purple-400">
             <span className="text-lg">🤖</span> Simulator AI (Shadow)
           </h2>
-          {shadowChat.length > 0 && <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-1 rounded">{shadowChat.length} Mesaje Antrenament</span>}
+          <div className="flex items-center gap-3">
+             <button
+              onClick={toggleAi}
+              disabled={togglingAi}
+              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border shadow-lg ${
+                aiEnabled
+                  ? "bg-emerald-600 border-emerald-400 text-white hover:bg-emerald-500 shadow-emerald-500/30"
+                  : "bg-red-600 border-red-400 text-white hover:bg-red-500 shadow-red-500/30 animate-pulse"
+              }`}
+             >
+                {togglingAi ? "⏳" : aiEnabled ? "🟢 AI ON (LIVE)" : "🔴 AI OFF (SHADOW)"}
+             </button>
+             {shadowChat.length > 0 && <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-1 rounded">{shadowChat.length} MSJ</span>}
+          </div>
         </header>
         <div className="flex-1 bg-black/40 p-4 overflow-y-auto relative flex flex-col gap-3">
           {shadowChat.length === 0 ? (
