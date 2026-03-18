@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { securityCheck } from '@/lib/security-middleware';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,38 @@ export async function GET(request: Request) {
     process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
     process.env.SUPABASE_SERVICE_ROLE_KEY || ''
   );
+
+  // ── Extract auth token and validate user ──
+  const authHeader = request.headers.get('authorization');
+  const token = authHeader?.replace('Bearer ', '');
+
+  if (token) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (user) {
+        // Run security checks: audit + rate limit + session + role
+        const check = await securityCheck({
+          userId: user.id,
+          email: user.email || '',
+          action: 'view_clients',
+          permission: 'view_clients',
+          resourceType: 'client',
+          metadata: { search: search || undefined },
+          ipAddress: request.headers.get('x-forwarded-for') || undefined,
+        });
+
+        if (!check.allowed) {
+          return NextResponse.json(
+            { error: check.reason || 'Access denied' },
+            { status: 403 }
+          );
+        }
+      }
+    } catch (e) {
+      // Auth validation failed — continue without blocking for now
+      console.warn('[SECURITY] Auth validation error:', e);
+    }
+  }
   
   try {
     let query = supabase.from('clients')
@@ -23,7 +56,6 @@ export async function GET(request: Request) {
     const { data, error, count } = await query;
     if (error) throw error;
     
-    // Clients already has id, real_phone_e164, full_name, so no deep mapping needed
     const mappedClients = (data || []).map(c => ({
         ...c,
         id: c.id,
