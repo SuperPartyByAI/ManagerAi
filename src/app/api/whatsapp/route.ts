@@ -125,7 +125,10 @@ ${historyStr}
 ${userText}`;
 
               try {
-                  const model = 'gemini-2.0-flash-lite';
+                  let model = 'gemini-2.0-flash-lite';
+                  if (model !== 'gemini-2.0-flash-lite') {
+                      throw new Error("STRICT POLICY: Utilizarea oricarui alt model in afara de gemini-2.0-flash-lite este INTERZISA!");
+                  }
                   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
                      method: 'POST',
                      headers: { 'Content-Type': 'application/json' },
