@@ -34,39 +34,53 @@ export async function POST(req: Request) {
         const model = "gemini-2.0-flash";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-        const prompt = `You are an expert identity verification system. Analyze these two images carefully.
+        const prompt = `You are an EXTREMELY STRICT identity verification security system. You must protect against fraud. Analyze these two images with maximum suspicion.
 
 IMAGE 1: Should be a Romanian national ID card (Carte de Identitate / Buletin).
-IMAGE 2: Should be a live selfie of a person.
+IMAGE 2: Should be a LIVE selfie taken directly by the phone's front camera.
 
-Perform these THREE checks and be STRICT:
+⚠️ CRITICAL ANTI-FRAUD RULES — READ VERY CAREFULLY:
 
-CHECK 1 - DOCUMENT AUTHENTICITY:
-- Is Image 1 a real physical ID card being photographed?
-- Does it look like a genuine Romanian ID card (CI/BI)?
-- Is it a photo OF AN ID CARD, not a photo of a screen showing an ID card?
-- Can you see the physical card edges, texture, or depth?
-- Score 0-100 (100 = definitely real physical card)
+CHECK 1 - DOCUMENT AUTHENTICITY (Score 0-100):
+- Is Image 1 a real PHYSICAL ID card photographed directly?
+- Look for: physical card edges, hologram reflections, card texture, 3D depth
+- FAIL if: you see a screen (phone, tablet, monitor) showing an ID card
+- FAIL if: the image looks like a printout or photocopy
 
-CHECK 2 - SELFIE LIVENESS:
-- Is Image 2 a live selfie taken by a real camera?
-- Does it look like a real person in front of a camera?
-- Is it NOT a photo of a photo, screen, or printout?
-- Check for natural lighting, depth, background consistency
-- Score 0-100 (100 = definitely live selfie)
+CHECK 2 - SELFIE LIVENESS (MOST CRITICAL CHECK - Score 0-100):
+THIS IS THE MOST IMPORTANT CHECK. You MUST detect if the selfie is fake.
 
-CHECK 3 - IDENTITY MATCH (MOST IMPORTANT):
-- Compare the person in the ID card photo with the selfie
-- Do the facial features match? (eyes, nose, mouth shape, face shape, etc.)
-- Consider that ID photos may be older, different lighting, different angle
-- Are they the SAME PERSON? Be very strict here.
+🚨 AUTOMATIC SCORE 0 (FAIL) if ANY of these are detected:
+- A phone, tablet, or any electronic screen is visible in Image 2
+- You can see phone bezels, screen edges, or device outlines
+- The "face" appears to be DISPLAYED ON A SCREEN (photo of a phone showing a face)
+- You see Moiré patterns, pixel grid, screen glare, or LCD artifacts
+- The image shows someone HOLDING A PHONE that displays a face or photo
+- The background contains a phone/tablet frame around the face
+- Screen brightness inconsistency (face lit differently than surroundings because it's a screen)
+- Status bar, notification bar, or app UI elements visible
+- The image looks like a photo taken OF ANOTHER PHONE'S SCREEN
+
+✅ SCORE 80+ ONLY if:
+- Direct camera capture of a real human face
+- Natural skin texture visible (pores, fine lines)  
+- Natural depth of field (background slightly blurred)
+- Consistent natural lighting across the entire image
+- NO electronic device frames or screens visible AT ALL
+- The person appears to be physically present in front of the camera
+
+CHECK 3 - IDENTITY MATCH (Score 0-100):
+- Compare the face in the ID card with the face in the selfie
+- ONLY compare if BOTH Check 1 and Check 2 PASS (score >= 60)
+- If either check failed, set identity_score to 0 and same_person to false
+- Look at: face shape, eye spacing, nose shape, mouth, jawline
 - Score 0-100 (100 = definitely same person)
 
-Respond ONLY with valid JSON, no markdown:
+RESPOND ONLY with valid JSON, no markdown, no extra text:
 {
   "document_score": <number 0-100>,
   "document_reason": "<brief explanation>",
-  "liveness_score": <number 0-100>,  
+  "liveness_score": <number 0-100>,
   "liveness_reason": "<brief explanation>",
   "identity_score": <number 0-100>,
   "identity_reason": "<brief explanation>",
@@ -99,7 +113,7 @@ Respond ONLY with valid JSON, no markdown:
                     },
                 ],
                 generationConfig: {
-                    temperature: 0.1,
+                    temperature: 0.05,
                     maxOutputTokens: 1024,
                 },
             }),
@@ -137,15 +151,16 @@ Respond ONLY with valid JSON, no markdown:
         // Calculate overall score
         const overallScore = Math.round(
             (result.document_score * 0.2 +
-                result.liveness_score * 0.2 +
-                result.identity_score * 0.6)
+                result.liveness_score * 0.3 +
+                result.identity_score * 0.5)
         );
 
+        // STRICT verification: liveness must be >= 70, all checks must pass
         const verified =
             result.overall_verdict === "PASS" &&
             result.identity_score >= 60 &&
-            result.document_score >= 40 &&
-            result.liveness_score >= 40;
+            result.document_score >= 50 &&
+            result.liveness_score >= 70;
 
         console.log(
             `[VERIFY-FACE] Doc:${result.document_score} Live:${result.liveness_score} ID:${result.identity_score} → ${verified ? "PASS" : "FAIL"}`
