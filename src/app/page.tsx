@@ -874,7 +874,17 @@ export default function CopilotPage() {
                                 onChange={e => setEditingDetails(prev => prev ? { ...prev, [key]: e.target.value } : prev)}
                                 className="flex-1 bg-black/40 border border-[var(--color-border)] rounded px-2 py-1 text-xs focus:outline-none focus:border-purple-500" />
                             ) : (
-                              <span className="text-white font-medium truncate">{String(val || '—')}</span>
+                              key === 'Personajul Dorit' && String(val || '').match(/,|\+| și | si /i) ? (
+                                <div className="flex flex-col gap-1 my-1">
+                                  {String(val || '').split(/,|\+| și | si /i).filter(c => c.trim() !== '').map((char, i) => (
+                                    <span key={i} className="text-white font-bold bg-purple-500/20 px-2.5 py-1 rounded-md text-[10px] w-max border border-purple-500/30">
+                                      🎭 {char.trim()}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-white font-medium truncate">{String(val || '—')}</span>
+                              )
                             )}
                           </div>
                         ))}
