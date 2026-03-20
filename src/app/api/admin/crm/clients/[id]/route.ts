@@ -43,7 +43,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       .select('id')
       .in('client_id', allClientIds)
       .order('created_at', { ascending: false })
-      .limit(500);
+      .limit(100);
 
     if (convErr) throw convErr;
 
@@ -57,7 +57,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         .select('id, conversation_id, content, sender_type, created_at')
         .in('conversation_id', convIds)
         .order('created_at', { ascending: true })
-        .limit(500);
+        .limit(100);
       latestMessages = msgs || [];
     }
 

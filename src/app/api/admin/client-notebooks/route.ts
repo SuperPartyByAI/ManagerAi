@@ -12,49 +12,24 @@ export async function GET() {
   try {
     const notebooks: Record<string, unknown>[] = [];
     
-    // 1. Fetch recent conversations to know which clients are active
+    // 1. Fetch recent conversations - use updated_at as last message proxy (lightweight)
     const { data: recentConvs, error: convErr } = await supabase.from('conversations')
-      .select('id, client_id')
+      .select('client_id, updated_at')
       .order('updated_at', { ascending: false })
-      .limit(400);
+      .limit(200);
       
     if (convErr) throw convErr;
 
     const uniqueClientIds: string[] = [];
-    const convToClientMap = new Map<string, string>();
+    const lastMessageMap = new Map<string, string>();
     if (recentConvs) {
        for (const conv of recentConvs) {
            const cid = conv.client_id;
-           if (cid && !uniqueClientIds.includes(cid)) uniqueClientIds.push(cid);
-           if (conv.id && cid) convToClientMap.set(conv.id, cid);
+           if (cid && !uniqueClientIds.includes(cid)) {
+               uniqueClientIds.push(cid);
+               if (conv.updated_at) lastMessageMap.set(cid, conv.updated_at);
+           }
        }
-    }
-
-    // 1b. Get last real message timestamp per conversation using embedded select (1 msg per conv)
-    const lastMessageMap = new Map<string, string>();
-    const allConvIds = Array.from(convToClientMap.keys());
-    if (allConvIds.length > 0) {
-      // Get latest message per conversation using Supabase embedded select
-      const batchSize = 100;
-      for (let i = 0; i < allConvIds.length; i += batchSize) {
-        const batch = allConvIds.slice(i, i + batchSize);
-        const { data: convMsgs } = await supabase
-          .from('conversations')
-          .select('id, messages(created_at)')
-          .in('id', batch)
-          .order('created_at', { referencedTable: 'messages', ascending: false })
-          .limit(1, { referencedTable: 'messages' });
-        for (const conv of convMsgs || []) {
-          const cid = convToClientMap.get(conv.id);
-          const msgs = (conv as any).messages as Array<{created_at: string}>;
-          if (cid && msgs && msgs.length > 0) {
-            const msgDate = msgs[0].created_at;
-            if (!lastMessageMap.has(cid) || msgDate > (lastMessageMap.get(cid) as string)) {
-              lastMessageMap.set(cid, msgDate);
-            }
-          }
-        }
-      }
     }
 
     if (uniqueClientIds.length > 0) {
@@ -134,7 +109,11 @@ export async function GET() {
       const tb = b.last_message_at || '';
       return tb.localeCompare(ta);
     });
-    return NextResponse.json({ notebooks });
+    return NextResponse.json({ notebooks }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
+      }
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
