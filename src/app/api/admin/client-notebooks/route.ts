@@ -14,20 +14,47 @@ export async function GET() {
     
     // 1. Fetch recent conversations to know which clients are active
     const { data: recentConvs, error: convErr } = await supabase.from('conversations')
-      .select('client_id, updated_at')
+      .select('id, client_id')
       .order('updated_at', { ascending: false })
-      .limit(300);
+      .limit(400);
       
     if (convErr) throw convErr;
 
     const uniqueClientIds: string[] = [];
+    const convToClientMap = new Map<string, string>();
     if (recentConvs) {
        for (const conv of recentConvs) {
            const cid = conv.client_id;
-           if (cid && !uniqueClientIds.includes(cid)) {
-               uniqueClientIds.push(cid);
-           }
+           if (cid && !uniqueClientIds.includes(cid)) uniqueClientIds.push(cid);
+           if (conv.id && cid) convToClientMap.set(conv.id, cid);
        }
+    }
+
+    // 1b. Get last real message timestamp per conversation using embedded select (1 msg per conv)
+    const lastMessageMap = new Map<string, string>();
+    const allConvIds = Array.from(convToClientMap.keys());
+    if (allConvIds.length > 0) {
+      // Get latest message per conversation using Supabase embedded select
+      const batchSize = 100;
+      for (let i = 0; i < allConvIds.length; i += batchSize) {
+        const batch = allConvIds.slice(i, i + batchSize);
+        const { data: convMsgs } = await supabase
+          .from('conversations')
+          .select('id, messages(created_at)')
+          .in('id', batch)
+          .order('created_at', { referencedTable: 'messages', ascending: false })
+          .limit(1, { referencedTable: 'messages' });
+        for (const conv of convMsgs || []) {
+          const cid = convToClientMap.get(conv.id);
+          const msgs = (conv as any).messages as Array<{created_at: string}>;
+          if (cid && msgs && msgs.length > 0) {
+            const msgDate = msgs[0].created_at;
+            if (!lastMessageMap.has(cid) || msgDate > (lastMessageMap.get(cid) as string)) {
+              lastMessageMap.set(cid, msgDate);
+            }
+          }
+        }
+      }
     }
 
     if (uniqueClientIds.length > 0) {
@@ -92,7 +119,8 @@ export async function GET() {
                            // We merge the requested services here so UI column 3 can read it
                            extracted_data: eventsMap.get(cid) || {}, 
                            avatar_url: c.avatar_url,
-                           brand_key: resolvedBrand
+                           brand_key: resolvedBrand,
+                           last_message_at: lastMessageMap.get(cid) || null
                         } as never);
                     }
                 }
@@ -100,6 +128,12 @@ export async function GET() {
         }
     }
     
+    // Sorteaza dupa ultimul mesaj DESC (ca WhatsApp)
+    notebooks.sort((a: any, b: any) => {
+      const ta = a.last_message_at || '';
+      const tb = b.last_message_at || '';
+      return tb.localeCompare(ta);
+    });
     return NextResponse.json({ notebooks });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

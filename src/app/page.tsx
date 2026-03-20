@@ -61,7 +61,18 @@ export default function CopilotPage() {
   const [activeSession, setActiveSession] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
-  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "testclient" | "live_agent_test">("whatsapp");
+  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "testclient" | "live_agent_test">(() => {
+    if (typeof window !== "undefined") {
+      const savedView = localStorage.getItem("superparty_admin_view");
+      if (savedView) return savedView as any;
+    }
+    return "whatsapp";
+  });
+
+  // Save tab state whenever the user navigates
+  useEffect(() => {
+    localStorage.setItem("superparty_admin_view", currentView);
+  }, [currentView]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Add Party state
@@ -616,6 +627,12 @@ export default function CopilotPage() {
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
                           Live
                         </div>
+                        {(n as any).last_message_at && (
+                          <div className="text-[10px] text-emerald-400 font-mono ml-auto">
+                            {new Date((n as any).last_message_at).toLocaleDateString('ro-RO', {day:'2-digit',month:'2-digit'})}{' '}
+                            {new Date((n as any).last_message_at).toLocaleTimeString('ro-RO', {hour:'2-digit',minute:'2-digit'})}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </button>
