@@ -9,6 +9,7 @@ import CollaboratorsManager from "../components/CollaboratorsManager";
 import EmployeesManager from "../components/EmployeesManager";
 import EmployeesBoard from "../components/EmployeesBoard";
 import EventsBoard from "../components/EventsBoard";
+import AiConfigManager from "../components/AiConfigManager";
 import CostumesManager from "../components/CostumesManager";
 import LiveAgentTestBoard from "../components/LiveAgentTestBoard";
 
@@ -61,7 +62,7 @@ export default function CopilotPage() {
   const [activeSession, setActiveSession] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
-  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "testclient" | "live_agent_test">(() => {
+  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "testclient" | "live_agent_test" | "aiconfig">(() => {
     if (typeof window !== "undefined") {
       const savedView = localStorage.getItem("superparty_admin_view");
       if (savedView) return savedView as any;
@@ -544,6 +545,18 @@ export default function CopilotPage() {
           </button>
 
           <button
+            onClick={() => setCurrentView("aiconfig")}
+            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
+              currentView === "aiconfig"
+                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]"
+                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
+            }`}
+          >
+            <div className="text-2xl drop-shadow-md">⚙️</div>
+            <div className="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">Config <span className="bg-cyan-600 text-white px-1 py-0.5 rounded text-[7px] leading-none">AI</span></div>
+          </button>
+
+          <button
             onClick={() => setCurrentView("live_agent_test")}
             className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
               currentView === "live_agent_test"
@@ -989,6 +1002,13 @@ export default function CopilotPage() {
 
         {/* Costumes Manager Module */}
         {currentView === "costumes" && <CostumesManager />}
+
+        {/* AI Config Module */}
+        {currentView === "aiconfig" && (
+          <div className="col-span-3 h-full overflow-hidden glass-panel rounded-2xl">
+            <AiConfigManager />
+          </div>
+        )}
 
         {/* Vertex AI Config Module */}
         {currentView === "vertex" && <VertexConfig />}
