@@ -865,19 +865,21 @@ export default function CopilotPage() {
                         </div>
                       </div>
                       <div className="px-4 py-3 space-y-1.5">
-                        {fieldEntries.map(([key, val]) => (
-                          <div key={key} className="flex items-center gap-2 text-xs">
+                        {fieldEntries.map(([key, val]) => {
+                          const isMultiChar = key === 'Personajul Dorit' && String(val || '').match(/,|\+| și | si /i);
+                          return (
+                          <div key={key} className={`flex ${isMultiChar ? 'items-start py-1' : 'items-center'} gap-2 text-xs`}>
                             <span className={val ? 'text-emerald-400' : 'text-orange-400'}>{val ? '✅' : '⏳'}</span>
-                            <span className="text-[var(--color-dim)] w-28 shrink-0 truncate">{key}</span>
+                            <span className={`text-[var(--color-dim)] w-28 shrink-0 ${isMultiChar ? 'mt-1' : 'truncate'}`}>{key}</span>
                             {isEditing ? (
                               <input type="text" value={String(val || '')}
                                 onChange={e => setEditingDetails(prev => prev ? { ...prev, [key]: e.target.value } : prev)}
                                 className="flex-1 bg-black/40 border border-[var(--color-border)] rounded px-2 py-1 text-xs focus:outline-none focus:border-purple-500" />
                             ) : (
-                              key === 'Personajul Dorit' && String(val || '').match(/,|\+| și | si /i) ? (
-                                <div className="flex flex-col gap-1 my-1">
+                              isMultiChar ? (
+                                <div className="flex-1 grid grid-cols-1 gap-1.5 align-top">
                                   {String(val || '').split(/,|\+| și | si /i).filter(c => c.trim() !== '').map((char, i) => (
-                                    <span key={i} className="text-white font-bold bg-purple-500/20 px-2.5 py-1 rounded-md text-[10px] w-max border border-purple-500/30">
+                                    <span key={i} className="text-white font-bold bg-purple-500/20 px-2 py-1 rounded-md text-[10px] w-max border border-purple-500/30 shadow-sm block">
                                       🎭 {char.trim()}
                                     </span>
                                   ))}
@@ -887,7 +889,7 @@ export default function CopilotPage() {
                               )
                             )}
                           </div>
-                        ))}
+                        )})}
                         <div className="flex items-center gap-2 text-xs pt-2 border-t border-white/5 mt-2">
                           <span className="text-lg">💰</span>
                           <span className="text-[var(--color-dim)] w-28 shrink-0">Total</span>
