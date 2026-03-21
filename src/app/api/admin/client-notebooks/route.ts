@@ -19,13 +19,11 @@ export async function GET() {
   try {
     const notebooks: Record<string, unknown>[] = [];
     
-    // 1. Fetch recent conversations with their latest real message
+    // 1. Fetch ALL active conversations regardless of trigger times to prevent invisible cut-offs
     const { data: recentConvs, error: convErr } = await supabase.from('conversations')
       .select('client_id, updated_at, messages(created_at)')
       .limit(1, { foreignTable: 'messages' })
-      .order('created_at', { foreignTable: 'messages', ascending: false })
-      .order('updated_at', { ascending: false })
-      .limit(800);
+      .order('created_at', { foreignTable: 'messages', ascending: false });
       
     if (convErr) throw convErr;
 
@@ -43,16 +41,26 @@ export async function GET() {
     }
 
     if (uniqueClientIds.length > 0) {
-        // 2. Fetch clients to get basic info (phone, alias, avatar)
-        const { data: clientsRaw } = await supabase.from('clients')
-            .select('id, real_phone_e164, full_name, public_alias, avatar_url, brand_key')
-            .in('id', uniqueClientIds);
+        // 2. Fetch clients (chunked to prevent URL too long error)
+        let clientsRaw: any[] = [];
+        for (let i = 0; i < uniqueClientIds.length; i += 200) {
+            const chunk = uniqueClientIds.slice(i, i + 200);
+            const { data } = await supabase.from('clients')
+               .select('id, real_phone_e164, full_name, public_alias, avatar_url, brand_key')
+               .in('id', chunk);
+            if (data) clientsRaw.push(...data);
+        }
             
-        // 3. Fetch active draft events from NEW ai_client_events table
-        const { data: activeEvents } = await supabase.from('ai_client_events')
-            .select('client_id, servicii_cerute, status')
-            .in('client_id', uniqueClientIds)
-            .eq('status', 'draft');
+        // 3. Fetch active draft events from NEW ai_client_events table (chunked)
+        let activeEvents: any[] = [];
+        for (let i = 0; i < uniqueClientIds.length; i += 200) {
+            const chunk = uniqueClientIds.slice(i, i + 200);
+            const { data } = await supabase.from('ai_client_events')
+               .select('client_id, servicii_cerute, status')
+               .in('client_id', chunk)
+               .eq('status', 'draft');
+            if (data) activeEvents.push(...data);
+        }
             
         const eventsMap = new Map(activeEvents?.map(e => [e.client_id, e.servicii_cerute]) || []);
 
