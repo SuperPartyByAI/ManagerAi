@@ -19,11 +19,10 @@ export async function GET() {
   try {
     const notebooks: Record<string, unknown>[] = [];
     
-    // 1. Fetch ALL active conversations regardless of trigger times to prevent invisible cut-offs
+    // 1. Fetch ALL active conversations using the unprotected last_message_at column bypass
     const { data: recentConvs, error: convErr } = await supabase.from('conversations')
-      .select('client_id, updated_at, messages(created_at)')
-      .limit(1, { foreignTable: 'messages' })
-      .order('created_at', { foreignTable: 'messages', ascending: false });
+      .select('client_id, last_message_at')
+      .order('last_message_at', { ascending: false });
       
     if (convErr) throw convErr;
 
@@ -34,7 +33,7 @@ export async function GET() {
            const cid = conv.client_id;
            if (cid && !uniqueClientIds.includes(cid)) {
                uniqueClientIds.push(cid);
-               const realDate = conv.messages && conv.messages.length > 0 ? conv.messages[0].created_at : conv.updated_at;
+               const realDate = conv.last_message_at;
                if (realDate) lastMessageMap.set(cid, realDate);
            }
        }
