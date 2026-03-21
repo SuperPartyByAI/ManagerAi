@@ -42,7 +42,7 @@ export async function GET() {
 
     if (uniqueClientIds.length > 0) {
         // 2. Fetch clients (chunked to prevent URL too long error)
-        const clientsRaw: Record<string, unknown>[] = [];
+        const clientsRaw: { id: string, real_phone_e164?: string, full_name?: string, public_alias?: string, avatar_url?: string, brand_key?: string }[] = [];
         for (let i = 0; i < uniqueClientIds.length; i += 200) {
             const chunk = uniqueClientIds.slice(i, i + 200);
             const { data } = await supabase.from('clients')
@@ -52,7 +52,7 @@ export async function GET() {
         }
             
         // 3. Fetch active draft events from NEW ai_client_events table (chunked)
-        const activeEvents: Record<string, unknown>[] = [];
+        const activeEvents: { client_id: string, servicii_cerute?: string, status?: string }[] = [];
         for (let i = 0; i < uniqueClientIds.length; i += 200) {
             const chunk = uniqueClientIds.slice(i, i + 200);
             const { data } = await supabase.from('ai_client_events')
