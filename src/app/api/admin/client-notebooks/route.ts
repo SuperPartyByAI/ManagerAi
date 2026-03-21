@@ -42,7 +42,7 @@ export async function GET() {
 
     if (uniqueClientIds.length > 0) {
         // 2. Fetch clients (chunked to prevent URL too long error)
-        let clientsRaw: any[] = [];
+        const clientsRaw: Record<string, unknown>[] = [];
         for (let i = 0; i < uniqueClientIds.length; i += 200) {
             const chunk = uniqueClientIds.slice(i, i + 200);
             const { data } = await supabase.from('clients')
@@ -52,7 +52,7 @@ export async function GET() {
         }
             
         // 3. Fetch active draft events from NEW ai_client_events table (chunked)
-        let activeEvents: any[] = [];
+        const activeEvents: Record<string, unknown>[] = [];
         for (let i = 0; i < uniqueClientIds.length; i += 200) {
             const chunk = uniqueClientIds.slice(i, i + 200);
             const { data } = await supabase.from('ai_client_events')
@@ -122,13 +122,13 @@ export async function GET() {
     }
     
     // Sorteaza dupa ultimul mesaj DESC (ca WhatsApp)
-    notebooks.sort((a: any, b: any) => {
-      const ta = a.last_message_at || '';
-      const tb = b.last_message_at || '';
+    notebooks.sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+      const ta = (a.last_message_at as string) || '';
+      const tb = (b.last_message_at as string) || '';
       return tb.localeCompare(ta);
     });
     return NextResponse.json({ notebooks });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
