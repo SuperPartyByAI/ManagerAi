@@ -63,7 +63,12 @@ export async function PUT(req: Request) {
   if (event_details !== undefined) update.event_details = event_details;
   if (total_amount !== undefined) update.total_amount = total_amount;
   if (notes !== undefined) update.notes = notes;
-  if (status !== undefined) update.status = status;
+  if (status !== undefined) {
+    update.status = status;
+    if (status === 'cancelled' || status === 'trashed') {
+      update.event_status = 'new';
+    }
+  }
   if (assigned_animator !== undefined) update.assigned_animator = assigned_animator;
   if (assigned_prep !== undefined) update.assigned_prep = assigned_prep;
   if (event_status !== undefined) update.event_status = event_status;

@@ -84,7 +84,17 @@ export async function GET(request: Request) {
 
     if (err2) throw err2;
 
-    // 3. Fetch Shadow Training Messages
+    // 3. Fetch REAl messages (Client & Human Agent & AI if sent)
+    const { data: realMessages, error: errReal } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', actualConvId)
+        .order('created_at', { ascending: true })
+        .limit(1000);
+        
+    if (errReal) throw errReal;
+
+    // 4. Fetch Shadow Training Messages (What AI thought)
     const { data: shadow, error: err3 } = await supabase
         .from('ai_training_messages')
         .select('*')
@@ -97,7 +107,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ 
         decisions: decisions || [], 
         drafts: drafts || [],
-        shadow_chat: shadow || []
+        shadow_chat: shadow || [],
+        real_chat: realMessages || []
     });
     
   } catch (err: any) {

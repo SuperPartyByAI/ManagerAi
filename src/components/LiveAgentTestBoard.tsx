@@ -13,9 +13,12 @@ type Notebook = {
 
 type Message = {
   id: string;
-  sender_type: "client" | "agent" | "ai";
+  sender_type: "client" | "agent" | "ai" | "operator" | "system";
   content: string;
   created_at: string;
+  ai_reply?: string | null;
+  confidence?: number | null;
+  operator_verdict?: string | null;
 };
 
 type AIDecision = {
@@ -302,13 +305,26 @@ export default function LiveAgentTestBoard() {
               messages.slice().map((m, i) => {
                 const isClient = m.sender_type === "client";
                 const isAi = m.sender_type === "ai";
-                let wrapCss = isClient ? "items-start" : "items-end";
-                let bubbleCss = isClient ? "bg-white/10 text-white rounded-tl-none border border-white/5" : isAi ? "bg-emerald-900/40 text-emerald-100 rounded-tr-none border border-emerald-500/30" : "bg-purple-900/40 text-white rounded-tr-none border border-purple-500/30";
+                const isOperator = m.sender_type === "operator" || m.sender_type === "agent" || m.sender_type === "system";
+                const wrapCss = isClient ? "items-start" : "items-end";
+                const bubbleCss = isClient ? "bg-white/10 text-white rounded-tl-none border border-white/5" : isAi ? "bg-emerald-900/40 text-emerald-100 rounded-tr-none border border-emerald-500/30" : "bg-purple-900/40 text-white rounded-tr-none border border-purple-500/30";
                 return (
                   <div key={i} className={`flex flex-col w-full ${wrapCss}`}>
                     {!isClient && <div className={`text-[8px] font-bold uppercase tracking-widest mb-1 ml-1 ${isAi ? "text-emerald-400" : "text-purple-400"}`}>{isAi ? "🤖 Trimis de AI" : "👤 Trimis de Om"}</div>}
                     {isClient && <div className="text-[8px] font-bold text-purple-400 uppercase tracking-widest mb-1 ml-1">👤 TRIMIS DE OM</div>}
-                    <div className={`p-3 rounded-2xl max-w-[85%] text-[13px] leading-relaxed ${bubbleCss}`}>
+                    
+                    {isOperator && m.ai_reply && (
+                        <div className="mb-2 max-w-[85%] text-[11px] leading-relaxed bg-[#1e1c27] text-gray-300 rounded-2xl rounded-tr-none p-2 border border-purple-500/20 shadow-lg opacity-80 decoration-dashed relative">
+                           <div className="flex justify-between items-center mb-1 pb-1 border-b border-purple-500/30">
+                              <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">🤖 Ce ar fi răspuns AI-ul (Ignorat)</span>
+                              {m.confidence && <span className="text-[8px] font-bold px-1 rounded bg-purple-500/20 text-purple-400">{m.confidence}%</span>}
+                           </div>
+                           <em className="italic block mt-1 line-clamp-3 leading-snug">{m.ai_reply}</em>
+                           <div className="absolute top-1/2 -right-4 w-4 h-[1px] bg-purple-500/30 pointer-events-none"></div>
+                        </div>
+                    )}
+
+                    <div className={`p-3 rounded-2xl max-w-[85%] text-[13px] leading-relaxed relative z-10 ${bubbleCss}`}>
                       {m.content}
                     </div>
                   </div>

@@ -6,12 +6,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import RolesManager from "../components/RolesManager";
 import VertexConfig from "../components/VertexConfig";
 import CollaboratorsManager from "../components/CollaboratorsManager";
-import EmployeesManager from "../components/EmployeesManager";
 import EmployeesBoard from "../components/EmployeesBoard";
 import EventsBoard from "../components/EventsBoard";
 import AiConfigManager from "../components/AiConfigManager";
 import CostumesManager from "../components/CostumesManager";
-import LiveAgentTestBoard from "../components/LiveAgentTestBoard";
 
 type RoleDef = { id: string; title: string; detalii: string[] };
 type ClientEvent = { id: string; role_title: string; event_details: Record<string, string>; total_amount: number; notes: string; created_at: string; status?: string };
@@ -19,7 +17,7 @@ type ClientEvent = { id: string; role_title: string; event_details: Record<strin
 // Types based on the existing Express schema
 type Message = {
   id: string;
-  sender_type: "client" | "ai";
+  sender_type: "client" | "ai" | "agent";
   content: string;
   created_at: string;
 };
@@ -62,10 +60,12 @@ export default function CopilotPage() {
   const [activeSession, setActiveSession] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
-  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "testclient" | "live_agent_test" | "aiconfig">(() => {
+  const [leftPanelMode, setLeftPanelMode] = useState<"conversations" | "testai">("conversations");
+  const [middlePanelMode, setMiddlePanelMode] = useState<"notebook" | "liveagent">("notebook");
+  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "aiconfig">(() => {
     if (typeof window !== "undefined") {
       const savedView = localStorage.getItem("superparty_admin_view");
-      if (savedView) return savedView as any;
+      if (savedView && ["whatsapp","roles","collaborators","employees","events","costumes","vertex","aiconfig"].includes(savedView)) return savedView as any;
     }
     return "whatsapp";
   });
@@ -76,7 +76,6 @@ export default function CopilotPage() {
   }, [currentView]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Add Party state
   const [showAddParty, setShowAddParty] = useState(false);
   const [availableRoles, setAvailableRoles] = useState<RoleDef[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState("");
@@ -85,6 +84,21 @@ export default function CopilotPage() {
   const [partyNotes, setPartyNotes] = useState("");
   const [savingParty, setSavingParty] = useState(false);
   const [clientEvents, setClientEvents] = useState<ClientEvent[]>([]);
+  const [persoaneCnt, setPersoaneCnt] = useState(1); // number of people for multi-person roles
+
+  // Shadow AI state (Live Agent mode)
+  type ShadowMsg = { idx: number; sender_type: string; content: string; created_at: string; ai_response: string | null };
+  const [shadowConversation, setShadowConversation] = useState<ShadowMsg[]>([]);
+  const [shadowLoading, setShadowLoading] = useState(false);
+  const [shadowError, setShadowError] = useState<string | null>(null);
+  const [shadowLoadedForSession, setShadowLoadedForSession] = useState<string | null>(null);
+
+  // Fields shared across all people (date, location) vs per-person fields
+  const SHARED_FIELDS_KEYWORDS = ["data", "locati", "localitat", "judet", "adres", "ora ", "ora_"];
+  const isSharedField = (f: string) => SHARED_FIELDS_KEYWORDS.some(kw => f.toLowerCase().includes(kw));
+  // Roles that support multiple people
+  const MULTI_PERSON_ROLES = ["ursitoare", "animator", "vrăjitoare", "vrajitoare"];
+  const isMultiPersonRole = (title: string) => MULTI_PERSON_ROLES.some(k => title.toLowerCase().includes(k));
 
   // Inline edit state
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -97,9 +111,84 @@ export default function CopilotPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Shadow AI: call /api/admin/live-agent/brain when Live Agent is active
+  const loadShadowConversation = () => {
+    if (!activeSession || messages.length === 0) return;
+    
+    setShadowLoading(true);
+    setShadowError(null);
+    setShadowLoadedForSession(activeSession);
+
+    // Folosim endpoint-ul corect care extrage DB-ul real vs shadow logic
+    fetch(`${API_BASE}/live-agent/brain?client_id=${activeSession}&_t=${Date.now()}`)
+      .then(r => r.json())
+      .then(data => {
+        // Combinăm real_chat și shadow_chat
+        const combinedRaw = data.real_chat || [];
+        const shadowDecisions = data.shadow_chat || [];
+        
+        // Transformăm în format UI, grupând la finalul fiecărui "turn"
+        const finalConversation: ShadowMsg[] = [];
+        
+        for (let i = 0; i < combinedRaw.length; i++) {
+            const msg = combinedRaw[i];
+            const isEndOfTurn = i === combinedRaw.length - 1 || combinedRaw[i + 1].sender_type === 'client';
+            let aiResponse = null;
+
+            if (isEndOfTurn) {
+                let lastClientMsgTime = 0;
+                for (let j = i; j >= 0; j--) {
+                    if (combinedRaw[j].sender_type === 'client') {
+                        lastClientMsgTime = new Date(combinedRaw[j].created_at).getTime();
+                        break;
+                    }
+                }
+                
+                if (lastClientMsgTime > 0) {
+                     // AI debounce time + vertex call time can be up to 15s. We look for a shadow response generated shortly after.
+                     const aiResp = shadowDecisions.find((s: any) => 
+                         s.sender_type === 'ai' && 
+                         !s._used && 
+                         new Date(s.created_at).getTime() >= lastClientMsgTime && 
+                         new Date(s.created_at).getTime() < lastClientMsgTime + 120000);
+                         
+                     if (aiResp) {
+                         aiResponse = aiResp.content;
+                         aiResp._used = true;
+                     }
+                }
+            }
+
+            finalConversation.push({
+                idx: i,
+                sender_type: msg.sender_type,
+                content: msg.content,
+                created_at: msg.created_at,
+                ai_response: aiResponse
+            });
+        }
+
+        setShadowConversation(finalConversation);
+        if (data.error) setShadowError(data.error);
+      })
+      .catch(e => setShadowError(String(e)))
+      .finally(() => setShadowLoading(false));
+  };
+
   useEffect(() => {
-    scrollToBottom();
-  }, [messages[0]?.id]);
+    if (middlePanelMode !== "liveagent" || !activeSession || messages.length === 0) return;
+    if (shadowLoadedForSession === activeSession) return; // already loaded
+    loadShadowConversation();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [middlePanelMode, activeSession, messages.length]);
+
+  // Reset shadow state when client changes
+  useEffect(() => {
+    setShadowConversation([]);
+    setShadowError(null);
+    setShadowLoadedForSession(null);
+  }, [activeSession]);
+
 
   // 1. Fetch active notebooks (sessions) every 5 seconds
   useEffect(() => {
@@ -195,6 +284,7 @@ export default function CopilotPage() {
     setPartyFields({});
     setPartyTotal("");
     setPartyNotes("");
+    setPersoaneCnt(1);
   };
 
   const saveParty = async () => {
@@ -291,7 +381,32 @@ export default function CopilotPage() {
     loadClientEvents();
   };
 
-  const activeEvents = clientEvents.filter(e => e.status === 'active' || !e.status);
+  const activeEvents = clientEvents
+    .filter(e => e.status === 'active' || !e.status)
+    .sort((a, b) => {
+      // Helpers for extracting date from event_details
+      const getDateStr = (ev: { event_details?: Record<string, any> }) => {
+        if (!ev.event_details) return null;
+        return ev.event_details["Data Evenimentului"] || ev.event_details["Data"] || ev.event_details["data"] || ev.event_details["data_evenimentului"] || null;
+      };
+      
+      const dateA = getDateStr(a);
+      const dateB = getDateStr(b);
+      
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1; // Put events without date at the end
+      if (!dateB) return -1;
+      
+      const timeA = new Date(dateA).getTime();
+      const timeB = new Date(dateB).getTime();
+      
+      // If parsing fails for one of them, fallback to string comparison or put at end
+      if (isNaN(timeA) && isNaN(timeB)) return dateA.localeCompare(dateB);
+      if (isNaN(timeA)) return 1;
+      if (isNaN(timeB)) return -1;
+
+      return timeA - timeB; // Ascending order (earliest first)
+    });
   const cancelledEvents = clientEvents.filter(e => e.status === 'cancelled');
   const trashedEvents = clientEvents.filter(e => e.status === 'trashed');
   const eventsTotal = activeEvents.reduce((s, e) => s + (e.total_amount || 0), 0);
@@ -431,169 +546,98 @@ export default function CopilotPage() {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Topbar */}
-      <header className="h-14 shrink-0 flex items-center justify-between px-6 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+      <header className="h-14 shrink-0 flex items-center justify-between px-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-lg bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg">
             AI
           </div>
           <div>
             <h1 className="font-bold text-base tracking-wide">Manager AI</h1>
-            <div className="text-[10px] uppercase tracking-wider text-[var(--color-dim)]">
-              Superparty Copilot
-            </div>
+            <div className="text-[10px] uppercase tracking-wider text-[var(--color-dim)]">Superparty Copilot</div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        {/* Horizontal Navigation */}
+        <nav className="flex items-center gap-1">
+          {([
+            { key: "whatsapp", icon: "💬", label: "WhatsApp", color: "green" },
+            { key: "roles", icon: "🤖", label: "Roluri AI", color: "purple" },
+            { key: "collaborators", icon: "👥", label: "Colab.", color: "amber" },
+            { key: "employees", icon: "👷", label: "Angajați", color: "indigo" },
+            { key: "events", icon: "📅", label: "Evenimente", color: "purple" },
+            { key: "costumes", icon: "🎭", label: "Costume", color: "pink" },
+            { key: "aiconfig", icon: "⚙️", label: "Config AI", color: "cyan" },
+            { key: "vertex", icon: "🔧", label: "Vertex", color: "slate" },
+          ] as { key: "whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "aiconfig" | "vertex"; icon: string; label: string; color: string }[]).map(({ key, icon, label }) => (
+            <button
+              key={key}
+              onClick={() => setCurrentView(key)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                currentView === key
+                  ? "bg-white/10 text-white border border-white/20"
+                  : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
+              }`}
+            >
+              <span>{icon}</span>
+              <span className="hidden lg:inline">{label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
             <span className="text-xs font-medium text-emerald-400">Hub Activ</span>
           </div>
-
-          <div className="text-xs text-[var(--color-dim)] bg-black/50 px-3 py-1.5 rounded-md border border-[var(--color-border)]">
-            Sesiune curentă: {activeNotebook?.phone_number || "Niciuna"}
+          <div className="text-xs text-[var(--color-dim)] bg-black/50 px-3 py-1.5 rounded-md border border-[var(--color-border)] hidden xl:block">
+            {activeNotebook?.phone_number || "Nicio sesiune"}
           </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
+      {/* Main Content Area — NO MORE SIDEBAR */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar Navigation */}
-        <aside className="w-20 shrink-0 border-r border-[var(--color-border)] bg-black/30 flex flex-col items-center py-6 gap-6 z-20 overflow-y-auto custom-scrollbar">
-          <button
-            onClick={() => setCurrentView("whatsapp")}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
-              currentView === "whatsapp"
-                ? "bg-green-500/20 text-green-400 border border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.2)]"
-                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <div className="text-2xl drop-shadow-md">💬</div>
-            <div className="text-[9px] font-bold uppercase tracking-wider">WhatsApp</div>
-          </button>
-          
-          <button
-            onClick={() => setCurrentView("roles")}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
-              currentView === "roles"
-                ? "bg-purple-500/20 text-purple-400 border border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]"
-                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <div className="text-2xl drop-shadow-md">🤖</div>
-            <div className="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">Roluri <span className="bg-purple-600 text-white px-1 py-0.5 rounded text-[7px] leading-none">AI</span></div>
-          </button>
-
-          <button
-            onClick={() => setCurrentView("collaborators")}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
-              currentView === "collaborators"
-                ? "bg-amber-500/20 text-amber-400 border border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <div className="text-2xl drop-shadow-md">👥</div>
-            <div className="text-[9px] font-bold uppercase tracking-wider">Colab.</div>
-          </button>
-
-          <button
-            onClick={() => setCurrentView("employees")}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
-              currentView === "employees"
-                ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
-                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <div className="text-2xl drop-shadow-md">👷</div>
-            <div className="text-[9px] font-bold uppercase tracking-wider">Angajați</div>
-          </button>
-
-          <button
-            onClick={() => setCurrentView("events")}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
-              currentView === "events"
-                ? "bg-purple-500/20 text-purple-400 border border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]"
-                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <div className="text-2xl drop-shadow-md">📅</div>
-            <div className="text-[9px] font-bold uppercase tracking-wider">Evenimente</div>
-          </button>
-
-          <button
-            onClick={() => setCurrentView("costumes")}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
-              currentView === "costumes"
-                ? "bg-pink-500/20 text-pink-400 border border-pink-500/50 shadow-[0_0_15px_rgba(236,72,153,0.2)]"
-                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <div className="text-2xl drop-shadow-md">🎭</div>
-            <div className="text-[9px] font-bold uppercase tracking-wider">Costume</div>
-          </button>
-
-          <button
-            onClick={() => setCurrentView("testclient")}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
-              currentView === "testclient"
-                ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)]"
-                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <div className="text-2xl drop-shadow-md">🧪</div>
-            <div className="text-[9px] font-bold uppercase tracking-wider">Test AI</div>
-          </button>
-
-          <button
-            onClick={() => setCurrentView("aiconfig")}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
-              currentView === "aiconfig"
-                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]"
-                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <div className="text-2xl drop-shadow-md">⚙️</div>
-            <div className="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">Config <span className="bg-cyan-600 text-white px-1 py-0.5 rounded text-[7px] leading-none">AI</span></div>
-          </button>
-
-          <button
-            onClick={() => setCurrentView("live_agent_test")}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
-              currentView === "live_agent_test"
-                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <div className="text-2xl drop-shadow-md">👁️</div>
-            <div className="text-[9px] font-bold uppercase tracking-wider text-center">Live<br/>Agent</div>
-          </button>
-
-          <div className="w-8 border-t border-[var(--color-border)]"></div>
-
-          <button
-            onClick={() => setCurrentView("vertex")}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all ${
-              currentView === "vertex"
-                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]"
-                : "text-[var(--color-dim)] hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <div className="text-2xl drop-shadow-md">⚙️</div>
-            <div className="text-[9px] font-bold uppercase tracking-wider">Vertex</div>
-          </button>
-        </aside>
 
         {/* The 3-Column Grid (WhatsApp Module) */}
         {currentView === "whatsapp" && (
           <main className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 overflow-hidden h-full">
-            {/* Column 1: Conversations List */}
+            {/* Column 1: Conversations or Test AI */}
             <section className="glass-panel rounded-2xl flex flex-col h-full overflow-hidden">
           <header className="px-4 py-3 border-b border-[var(--color-border)] bg-black/40 flex justify-between items-center shrink-0">
             <h2 className="font-semibold flex items-center gap-2">
-              <span className="text-lg">📇</span> Conversații Active
+              <span className="text-lg">{leftPanelMode === "conversations" ? "📇" : "🧪"}</span>
+              {leftPanelMode === "conversations" ? "Conversații Active" : "Test AI"}
             </h2>
-            <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">{notebooks.length}</span>
+            <div className="flex items-center gap-2">
+              {leftPanelMode === "conversations" && (
+                <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">{notebooks.length}</span>
+              )}
+              <button
+                onClick={() => setLeftPanelMode(leftPanelMode === "conversations" ? "testai" : "conversations")}
+                className={`text-[10px] px-2 py-1 rounded-lg font-bold border transition-all ${
+                  leftPanelMode === "testai"
+                    ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/40"
+                    : "text-[var(--color-dim)] border-[var(--color-border)] hover:bg-white/5"
+                }`}
+              >
+                {leftPanelMode === "conversations" ? "🧪 Test AI" : "📇 Conversații"}
+              </button>
+            </div>
           </header>
+          {leftPanelMode === "testai" ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 gap-4 text-center">
+              <div className="text-5xl mb-2">🧪</div>
+              <h3 className="font-bold text-lg">Test AI Simulare</h3>
+              <p className="text-sm text-[var(--color-dim)]">Simulează o conversație cu AI-ul ca şi cum ai fi un client.</p>
+              <button
+                onClick={() => setCurrentView("whatsapp")}
+                className="mt-2 px-4 py-2 bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 rounded-xl text-sm font-bold hover:bg-yellow-500/30 transition-all"
+              >
+                Deschide Test AI Complet →
+              </button>
+              <p className="text-[10px] text-[var(--color-dim)] mt-4">💡 Apasă butonul de sus pentru testare completa sau selectează un contact din listă pentru a activa simularea.</p>
+            </div>
+          ) : (
           <div className="flex-1 overflow-y-auto p-2 space-y-2">
             {notebooks.length === 0 ? (
               <div className="text-center p-4 text-[var(--color-dim)] text-sm">Nu s-au găsit clienți recenți.</div>
@@ -653,18 +697,123 @@ export default function CopilotPage() {
               })
             )}
           </div>
+          )}
         </section>
 
-        {/* Column 2: AI Notebook (Client Profile) */}
+        {/* Column 2: AI Notebook or Live Agent */}
         <section className="glass-panel rounded-2xl flex flex-col h-full overflow-hidden">
           <header className="px-4 py-3 border-b border-[var(--color-border)] bg-black/40 flex justify-between items-center shrink-0">
             <h2 className="font-semibold flex items-center gap-2">
-              <span className="text-lg">🧠</span> Notebook Client
+              <span className="text-lg">{middlePanelMode === "notebook" ? "🧠" : "👁️"}</span>
+              {middlePanelMode === "notebook" ? "Notebook Client" : "Live Agent"}
             </h2>
-            <span className="text-[10px] text-[var(--color-dim)] uppercase tracking-wider bg-black/50 px-2 py-1 rounded">Memorie AI</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-[var(--color-dim)] uppercase tracking-wider bg-black/50 px-2 py-1 rounded">
+                {middlePanelMode === "notebook" ? "Memorie AI" : "Monitorizare"}
+              </span>
+              <button
+                onClick={() => setMiddlePanelMode(middlePanelMode === "notebook" ? "liveagent" : "notebook")}
+                className={`text-[10px] px-2 py-1 rounded-lg font-bold border transition-all ${
+                  middlePanelMode === "liveagent"
+                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 animate-pulse"
+                    : "text-[var(--color-dim)] border-[var(--color-border)] hover:bg-white/5"
+                }`}
+              >
+                {middlePanelMode === "notebook" ? "👁️ Live Agent" : "🧠 Notebook"}
+              </button>
+            </div>
           </header>
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            {!activeSession ? (
+            {middlePanelMode === "liveagent" ? (
+              /* LIVE AGENT MODE: Shadow AI — conversație completă */
+              <div className="flex flex-col gap-2 h-full">
+                <div className="text-[10px] text-purple-400 uppercase tracking-wider font-bold flex items-center gap-2 shrink-0">
+                  <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+                  Shadow AI — Replay Conversație Completă
+                  <button
+                    onClick={() => { setShadowLoadedForSession(null); }}
+                    className="ml-auto text-purple-400 hover:text-purple-300 text-[10px] underline"
+                  >🔄 Reîncarcă</button>
+                </div>
+
+                {!activeSession ? (
+                  <div className="flex flex-col items-center justify-center h-48 text-[var(--color-dim)] text-sm">
+                    <div className="text-3xl mb-3">👁️</div>
+                    <p>Selectează un client pentru a activa Shadow AI</p>
+                  </div>
+                ) : shadowLoading ? (
+                  <div className="flex flex-col items-center justify-center h-48 text-purple-400 text-sm gap-3">
+                    <div className="w-8 h-8 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin"></div>
+                    <p className="text-xs">AI analizează întreaga conversație...</p>
+                  </div>
+                ) : shadowError ? (
+                  <div className="flex flex-col items-center justify-center h-40 text-red-400 text-xs gap-2">
+                    <div className="text-2xl">⚠️</div>
+                    <p className="text-center">Eroare: {shadowError}</p>
+                    <button onClick={() => { setShadowLoadedForSession(null); }} className="text-purple-400 underline text-[10px]">Încearcă din nou</button>
+                  </div>
+                ) : shadowConversation.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-48 text-[var(--color-dim)] text-sm gap-2">
+                    <div className="text-3xl">🤖</div>
+                    <p className="text-xs text-center">Nicio conversație disponibilă</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 overflow-y-auto flex-1">
+                    {shadowConversation.map((msg, i) => {
+                      const time = new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                      if (msg.sender_type === "client") {
+                        return (
+                          <div key={i}>
+                            {/* Client message */}
+                            <div className="bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+                              <div className="flex items-center gap-1 mb-1">
+                                <span className="text-[10px] text-blue-300 font-bold">👤 Client</span>
+                                <span className="text-[9px] text-[var(--color-dim)] ml-auto">{time}</span>
+                              </div>
+                              <p className="text-xs text-white/80">{msg.content}</p>
+                            </div>
+                            {/* AI Shadow response for this turn */}
+                            {msg.ai_response && (
+                              <div className="bg-purple-950/40 border border-purple-500/25 rounded-xl px-3 py-2 mt-2 ml-6 relative">
+                                <div className="absolute top-0 bottom-0 left-0 border-l-2 border-purple-500/50 -ml-[7px]"></div>
+                                <div className="flex items-center gap-1 mb-1">
+                                  <span className="text-[10px] text-purple-300 font-bold">🤖 Ai fi putut răspunde cu (Shadow AI)</span>
+                                </div>
+                                <p className="text-xs text-white/90 whitespace-pre-wrap">{msg.ai_response}</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      } else {
+                        // Agent/employee message
+                        return (
+                          <div key={i}>
+                            <div className="bg-emerald-950/20 border border-emerald-500/15 rounded-xl px-3 py-2 ml-6">
+                              <div className="flex items-center gap-1 mb-1">
+                                <span className="text-[10px] text-emerald-400 font-bold">👷 Angajat / Tu</span>
+                                <span className="text-[9px] text-[var(--color-dim)] ml-auto">{time}</span>
+                              </div>
+                              <p className="text-xs text-white/80 whitespace-pre-wrap">{msg.content}</p>
+                            </div>
+                            {/* AI Shadow response for this turn */}
+                            {msg.ai_response && (
+                              <div className="bg-purple-950/40 border border-purple-500/25 rounded-xl px-3 py-2 mt-2 ml-6 relative shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+                                <div className="flex items-center gap-1 mb-1">
+                                  <span className="text-[10px] text-purple-300 font-bold">🤖 Shadow AI a judecat așa</span>
+                                </div>
+                                <p className="text-xs text-white/90 whitespace-pre-wrap">{msg.ai_response}</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* NOTEBOOK MODE: show client profile */
+              !activeSession ? (
               <div className="flex-1 flex flex-col justify-center items-center text-[var(--color-dim)] h-full min-h-[200px]">
                 <p>Selectează clientul pentru profil...</p>
               </div>
@@ -706,8 +855,8 @@ export default function CopilotPage() {
                 <div className="flex-1 bg-black/40 border border-[var(--color-border)] rounded-lg p-4 overflow-y-auto mb-2 relative flex flex-col gap-3">
                    {messages.length === 0 ? (
                      <div className="m-auto text-center text-[var(--color-dim)] italic">Niciun mesaj găsit în baza de date.</div>
-                   ) : (
-                     messages.slice().reverse().map((m, i) => {
+                    ) : (
+                     messages.map((m, i) => {
                        const isClient = m.sender_type === "client";
                        return (
                          <div key={i} className={`flex w-full ${isClient ? "justify-start" : "justify-end"}`}>
@@ -728,6 +877,7 @@ export default function CopilotPage() {
                    <div ref={messagesEndRef} />
                 </div>
               </>
+              )
             )}
           </div>
         </section>
@@ -770,23 +920,103 @@ export default function CopilotPage() {
                   </select>
                 </div>
 
-                {/* Dynamic Fields */}
-                {selectedRole && selectedRole.detalii.length > 0 && (
-                  <div className="space-y-2">
-                    {selectedRole.detalii.map(field => (
-                      <div key={field}>
-                        <label className="text-[10px] uppercase tracking-wider text-[var(--color-dim)] mb-0.5 block">{field}</label>
-                        <input
-                          type="text"
-                          value={partyFields[field] || ""}
-                          onChange={e => setPartyFields(prev => ({ ...prev, [field]: e.target.value }))}
-                          className="w-full bg-black/40 border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
-                          placeholder={field}
-                        />
-                      </div>
-                    ))}
+                {/* Multi-person counter — shown for Ursitoare/Animatori etc. */}
+                {selectedRole && isMultiPersonRole(selectedRole.title) && (
+                  <div className="flex items-center gap-3 bg-purple-900/20 border border-purple-500/20 rounded-lg px-3 py-2">
+                    <span className="text-xs text-purple-300 font-bold">👥 Nr. persoane:</span>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <button
+                        type="button"
+                        onClick={() => setPersoaneCnt(p => Math.max(1, p - 1))}
+                        className="w-6 h-6 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-300 font-bold text-sm hover:bg-purple-500/40 transition-all"
+                      >-</button>
+                      <span className="text-white font-bold text-sm w-4 text-center">{persoaneCnt}</span>
+                      <button
+                        type="button"
+                        onClick={() => setPersoaneCnt(p => Math.min(10, p + 1))}
+                        className="w-6 h-6 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-300 font-bold text-sm hover:bg-purple-500/40 transition-all"
+                      >+</button>
+                    </div>
                   </div>
                 )}
+
+                {/* Dynamic Fields — with multi-person support */}
+                {selectedRole && selectedRole.detalii.length > 0 && (() => {
+                  const multiPerson = isMultiPersonRole(selectedRole.title);
+                  if (!multiPerson || persoaneCnt <= 1) {
+                    // Single person - simple list
+                    return (
+                      <div className="space-y-2">
+                        {selectedRole.detalii.map(field => (
+                          <div key={field}>
+                            <label className="text-[10px] uppercase tracking-wider text-[var(--color-dim)] mb-0.5 block">{field}</label>
+                            <input
+                              type="text"
+                              value={partyFields[field] || ""}
+                              onChange={e => setPartyFields(prev => ({ ...prev, [field]: e.target.value }))}
+                              className="w-full bg-black/40 border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                              placeholder={field}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+
+                  // Multi-person: split shared vs per-person fields
+                  const sharedFields = selectedRole.detalii.filter(f => isSharedField(f));
+                  const perPersonFields = selectedRole.detalii.filter(f => !isSharedField(f));
+
+                  return (
+                    <div className="space-y-3">
+                      {/* Shared fields */}
+                      {sharedFields.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-[10px] text-[var(--color-dim)] uppercase tracking-wider font-bold flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span> Detalii Comune
+                          </div>
+                          {sharedFields.map(field => (
+                            <div key={field}>
+                              <label className="text-[10px] uppercase tracking-wider text-[var(--color-dim)] mb-0.5 block">{field}</label>
+                              <input
+                                type="text"
+                                value={partyFields[field] || ""}
+                                onChange={e => setPartyFields(prev => ({ ...prev, [field]: e.target.value }))}
+                                className="w-full bg-black/40 border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                                placeholder={field}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Per-person fields */}
+                      {Array.from({ length: persoaneCnt }, (_, idx) => (
+                        <div key={idx} className="bg-purple-900/20 border border-purple-500/20 rounded-lg p-3 space-y-2">
+                          <div className="text-[11px] text-purple-400 font-bold flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-[10px]">{idx + 1}</span>
+                            Persoana {idx + 1}
+                          </div>
+                          {perPersonFields.map(field => {
+                            const key = persoaneCnt > 1 ? `P${idx + 1} - ${field}` : field;
+                            return (
+                              <div key={key}>
+                                <label className="text-[10px] uppercase tracking-wider text-[var(--color-dim)] mb-0.5 block">{field}</label>
+                                <input
+                                  type="text"
+                                  value={partyFields[key] || ""}
+                                  onChange={e => setPartyFields(prev => ({ ...prev, [key]: e.target.value }))}
+                                  className="w-full bg-black/40 border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-500"
+                                  placeholder={field}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 {/* Total */}
                 {selectedRole && (
@@ -839,14 +1069,22 @@ export default function CopilotPage() {
                   const fieldEntries = roleFields.length > 0
                     ? roleFields.map(f => [f, isEditing ? (editingDetails?.[f] || '') : (savedDetails[f] || '')] as [string, string])
                     : Object.entries(isEditing ? (editingDetails || {}) : savedDetails);
+                  
+                  const dateStr = savedDetails["Data Evenimentului"] || savedDetails["Data"] || savedDetails["data"] || savedDetails["data_evenimentului"] || "Dată Necunoscută";
+
                   return (
                     <div key={ev.id} className={`rounded-xl border transition-all ${isEditing ? 'bg-purple-900/20 border-purple-500/40' : 'bg-black/30 border-[var(--color-border)] hover:border-purple-500/30'}`}>
                       <div className="px-4 py-3 flex justify-between items-center border-b border-white/5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">🎉</span>
-                          <div>
-                            <div className="font-bold text-sm text-purple-400">{ev.role_title.replace('Rol: ', '')}</div>
-                            <div className="text-[9px] text-[var(--color-dim)]">{new Date(ev.created_at).toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">🎉</span>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-base text-purple-400 uppercase tracking-wide">{ev.role_title.replace('Rol: ', '')}</span>
+                              <span className="bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-0.5 rounded-md text-sm border border-emerald-500/30 shadow-sm">
+                                📅 {dateStr}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-[var(--color-dim)]">Notat pe: {new Date(ev.created_at).toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -866,7 +1104,7 @@ export default function CopilotPage() {
                       </div>
                       <div className="px-4 py-3 space-y-1.5">
                         {fieldEntries.map(([key, val]) => {
-                          const isMultiChar = key === 'Personajul Dorit' && String(val || '').match(/,|\+| și | si /i);
+                          const isMultiChar = key === 'Personajul Dorit' && String(val || '').match(/,|\+| și | si |\d+\s+\w/i);
                           return (
                           <div key={key} className={`flex ${isMultiChar ? 'items-start py-1' : 'items-center'} gap-2 text-xs`}>
                             <span className={val ? 'text-emerald-400' : 'text-orange-400'}>{val ? '✅' : '⏳'}</span>
@@ -878,11 +1116,37 @@ export default function CopilotPage() {
                             ) : (
                               isMultiChar ? (
                                 <div className="flex-1 grid grid-cols-1 gap-1.5 align-top">
-                                  {String(val || '').split(/,|\+| și | si /i).filter(c => c.trim() !== '').map((char, i) => (
-                                    <span key={i} className="text-white font-bold bg-purple-500/20 px-2 py-1 rounded-md text-[10px] w-max border border-purple-500/30 shadow-sm block">
-                                      🎭 {char.trim()}
-                                    </span>
-                                  ))}
+                                  {(() => {
+                                    // Split pe separatori: virgulă, +, "și", "si"
+                                    const parts = String(val || '').split(/,|\+| și | si /i).filter(c => c.trim() !== '');
+                                    // Expandem "3 Ursitoare Bune" → 3× "Ursitoare Bună"
+                                    const tags: string[] = [];
+                                    parts.forEach(part => {
+                                      const p = part.trim();
+                                      // Detectăm prefix numeric: "3 Ursitoare Bune", "1 Rea", "2 Vrăjitoare" etc.
+                                      const numMatch = p.match(/^(\d+)\s+(.+)$/);
+                                      if (numMatch) {
+                                        const count = Math.min(parseInt(numMatch[1], 10), 10);
+                                        let label = numMatch[2].trim();
+                                        // Normalizăm pluralul → singular
+                                        label = label
+                                          .replace(/bune$/i, 'Bună')
+                                          .replace(/rele$/i, 'Rea')
+                                          .replace(/buni$/i, 'Bun')
+                                          .replace(/ursitoare buna/i, 'Ursitoare Bună')
+                                          .replace(/ursitoare rea/i, 'Ursitoare Rea');
+                                        // Dacă label nu conține deja "Ursitoare" și vine după un split, păstrăm ca e
+                                        for (let n = 0; n < count; n++) tags.push(label);
+                                      } else {
+                                        tags.push(p);
+                                      }
+                                    });
+                                    return tags.map((tag, i) => (
+                                      <span key={i} className="text-white font-bold bg-purple-500/20 px-2 py-1 rounded-md text-[10px] w-max border border-purple-500/30 shadow-sm block">
+                                        🎭 {tag}
+                                      </span>
+                                    ));
+                                  })()}
                                 </div>
                               ) : (
                                 <span className="text-white font-medium truncate">{String(val || '—')}</span>
@@ -1024,20 +1288,6 @@ export default function CopilotPage() {
 
         {/* Vertex AI Config Module */}
         {currentView === "vertex" && <VertexConfig />}
-
-        {/* Test Client Simulator */}
-        {currentView === "testclient" && (
-          <main className="flex-1 overflow-hidden h-full p-0">
-            <iframe
-              src="/test-client.html"
-              className="w-full h-full border-0"
-              title="Test Client Simulator"
-            />
-          </main>
-        )}
-
-        {/* Live Agent Test Board */}
-        {currentView === "live_agent_test" && <LiveAgentTestBoard />}
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `

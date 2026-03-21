@@ -2,11 +2,18 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 
 export async function GET() {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    {
+      global: {
+        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' as RequestCache })
+      }
+    }
   );
   
   try {
@@ -16,7 +23,7 @@ export async function GET() {
     const { data: recentConvs, error: convErr } = await supabase.from('conversations')
       .select('client_id, updated_at')
       .order('updated_at', { ascending: false })
-      .limit(200);
+      .limit(800);
       
     if (convErr) throw convErr;
 
@@ -109,11 +116,7 @@ export async function GET() {
       const tb = b.last_message_at || '';
       return tb.localeCompare(ta);
     });
-    return NextResponse.json({ notebooks }, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
-      }
-    });
+    return NextResponse.json({ notebooks });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
