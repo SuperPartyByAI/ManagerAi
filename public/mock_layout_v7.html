@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup V7: 2x2 (Culori + Data Sus + Toate Câmpurile)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f1115; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        
+        /* Efecte subtile de glow pe hover pentru diferențiere vizuală */
+        .card-emerald { border-color: rgba(16, 185, 129, 0.5); box-shadow: inset 0 0 20px rgba(16,185,129,0.05); }
+        .card-sky { border-color: rgba(14, 165, 233, 0.5); box-shadow: inset 0 0 20px rgba(14,165,233,0.05); }
+        .card-fuchsia { border-color: rgba(217, 70, 239, 0.5); box-shadow: inset 0 0 20px rgba(217,70,239,0.05); }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col bg-[#0b0c10]">
+
+<header class="h-14 border-b border-white/5 bg-[#14161a] flex items-center px-6 justify-between shrink-0 shadow-md relative z-10">
+    <div class="flex items-center gap-3">
+        <span class="bg-gradient-to-r from-purple-500 to-pink-600 text-white font-black px-2 py-1 rounded text-[11px] shadow-[0_0_15px_rgba(168,85,247,0.4)]">AI</span>
+        <h1 class="text-base font-bold tracking-wider">Manager AI <span class="text-[10px] text-emerald-500 uppercase tracking-widest font-normal ml-3 border-l border-white/10 pl-3">Design V7 (Data Sus + Culori Carduri)</span></h1>
+    </div>
+</header>
+
+<main class="flex-1 flex gap-4 p-4 overflow-hidden h-[calc(100vh-56px)]">
+    
+    <!-- LEFT SIDEBAR -->
+    <section class="w-[280px] bg-[#14161a] rounded-2xl border border-white/5 flex flex-col overflow-hidden shrink-0 shadow-2xl h-full">
+        <header class="px-5 py-3 border-b border-white/5 flex justify-between items-center bg-black/20 shrink-0">
+            <h2 class="font-bold text-sm text-gray-200">📇 Clienți (Live)</h2>
+            <span class="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded font-mono">253</span>
+        </header>
+        <div class="flex-1 overflow-y-auto p-3 space-y-1">
+            <div class="p-3 bg-white/10 rounded-xl border border-white/10 flex items-center gap-3 cursor-pointer shadow-inner">
+                <div class="w-10 h-10 rounded-full bg-emerald-900/50 border border-emerald-500 flex justify-center items-center font-bold text-emerald-400 text-xs text-center leading-none"><span>VIP</span></div>
+                <div>
+                    <div class="font-bold text-[13px] text-white">Superparty-19</div>
+                    <div class="text-[10px] text-yellow-400 font-mono mt-0.5 font-bold">3 EVENIMENTE ACTIVE</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- RIGHT AREA: 2x2 GRID -->
+    <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-4 h-full min-w-0">
+        
+        <!-- TOP LEFT: Chat Client -->
+        <section class="bg-[#14161a] rounded-2xl border border-white/5 flex flex-col overflow-hidden shadow-xl">
+            <header class="p-3 border-b border-white/5 flex justify-between items-center bg-black/20 shrink-0">
+                <h2 class="font-bold text-sm text-gray-200 flex items-center gap-2">💬 Chat Client</h2>
+                <div class="bg-red-500/10 text-red-500 border border-red-500/20 px-3 py-1 rounded text-[9px] font-black tracking-widest uppercase">
+                    <span class="animate-pulse mr-1">●</span> AI OFF (SHADOW)
+                </div>
+            </header>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                <div class="flex flex-col items-start w-full">
+                    <div class="text-[8px] font-bold text-purple-400 uppercase tracking-widest mb-1 ml-1">👤 TRIMIS DE OM</div>
+                    <div class="bg-purple-900/40 text-white p-3 rounded-2xl rounded-tl-none max-w-[85%] text-[13px] border border-purple-500/30">
+                        Vreau sâmbătă la Teghes animație cu Mickey 2 ore. Duminică am nevoie de cabină foto 4 ore la restaurantul Aristocrat. Apoi duminică seara la 20:00 la același restaurant vreau ursitoarele premium. Banii îi dau avans factură la toate. Sărbătorita e Maya, face 3 ani!
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TOP RIGHT: Acțiuni CRM (Real) CULORI SEPARATE -->
+        <section class="bg-gradient-to-br from-[#14161a] to-emerald-900/10 rounded-2xl border border-emerald-500/20 flex flex-col overflow-hidden shadow-[0_0_30px_rgba(16,185,129,0.05)]">
+            <header class="p-3 border-b border-emerald-500/20 flex justify-between items-center bg-emerald-900/20 shrink-0">
+                <h2 class="font-bold text-sm text-emerald-400 flex items-center gap-2">✅ Acțiuni CRM (Real)</h2>
+                <div class="bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-1.5 rounded text-[10px] font-black tracking-widest uppercase shadow-lg shadow-emerald-500/20">
+                    CREARE ON
+                </div>
+            </header>
+            
+            <div class="flex-1 overflow-y-auto p-4 space-y-6">
+                
+                <!-- EVENT 1: Animație (VERDE / EMERALD) -->
+                <div class="bg-black/80 rounded-xl p-4 text-emerald-100 border-2 card-emerald w-full shadow-lg relative">
+                    <div class="absolute top-0 right-0 bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded-bl-xl font-bold text-[9px] uppercase border-b border-l border-emerald-500/50">
+                        VERIFICAT DB
+                    </div>
+                    <div class="flex justify-between items-center mb-4 pb-3 border-b border-emerald-500/30">
+                        <div class="font-bold text-emerald-400 uppercase tracking-wider text-[11px] flex items-center gap-2">
+                            <span class="text-lg">🎉</span> ROL/PACHET: ANIMAȚIE
+                        </div>
+                    </div>
+                    <div class="bg-emerald-950/30 rounded p-3 text-xs font-mono text-emerald-200 break-all space-y-3">
+                        
+                        <!-- DATA MUTATĂ LA ÎNCEPUT -->
+                        <div class="flex flex-col border-b border-emerald-900/50 pb-1.5 bg-emerald-500/10 -mx-3 px-3 pt-1 rounded-t">
+                            <span class="opacity-90 text-[10px] uppercase mb-0.5 font-bold text-emerald-400">Data_Evenimentului:</span>
+                            <span class="text-left text-white font-bold text-[13px] tracking-wide">23.06.2026 (Sâmbătă)</span>
+                        </div>
+
+                        <div class="flex flex-col border-b border-emerald-900/50 pb-1.5">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Loca_ia:</span>
+                            <span class="text-left text-emerald-100 font-medium whitespace-pre-wrap">Grădinița Teghes, Comuna Domnești, 
+Strada Transilvaniei 38</span>
+                        </div>
+                        <div class="flex flex-col border-b border-emerald-900/50 pb-1.5">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Personajul_Dorit:</span>
+                            <span class="text-left text-emerald-100 font-medium">Mickey Mouse</span>
+                        </div>
+                        <div class="flex flex-col border-b border-emerald-900/50 pb-1.5">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Nume_S_rb_torit:</span>
+                            <span class="text-left text-emerald-100 font-medium">Raducan Maya Karina (3 ani)</span>
+                        </div>
+                        <div class="flex flex-col border-b border-emerald-900/50 pb-1.5">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Num_r_Copii:</span>
+                            <span class="text-left text-emerald-100 font-medium">15-17</span>
+                        </div>
+                        <div class="flex justify-between border-b border-emerald-900/50 pb-1.5">
+                            <div class="flex flex-col border-r border-emerald-900/50 pr-4 w-1/2">
+                                <span class="opacity-70 text-[10px] uppercase mb-0.5">Ora_de__nceput:</span>
+                                <span class="text-left text-emerald-100 font-medium">10:00</span>
+                            </div>
+                            <div class="flex flex-col pl-4 w-1/2">
+                                <span class="opacity-70 text-[10px] uppercase mb-0.5">Durata__ore_:</span>
+                                <span class="text-left text-emerald-100 font-medium">2</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col border-b border-emerald-900/50 pb-1.5">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Metod__de_Plat__:</span>
+                            <span class="text-left text-emerald-100 font-medium">Factura (persoana fizica)</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Situa_ie_Încasare:</span>
+                            <span class="text-left text-emerald-100 font-medium">Plata in avans integrala</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EVENT 2: Cabină Foto (ALBASTRU / SKY) -->
+                <div class="bg-black/80 rounded-xl p-4 text-sky-100 border-2 card-sky w-full shadow-lg relative">
+                    <div class="absolute top-0 right-0 bg-sky-500/20 text-sky-300 px-2 py-1 rounded-bl-xl font-bold text-[9px] uppercase border-b border-l border-sky-500/50">
+                        VERIFICAT DB
+                    </div>
+                    <div class="flex justify-between items-center mb-4 pb-3 border-b border-sky-500/30">
+                        <div class="font-bold text-sky-400 uppercase tracking-wider text-[11px] flex items-center gap-2">
+                            <span class="text-lg">📸</span> ROL/PACHET: CABINA FOTO
+                        </div>
+                    </div>
+                    <!-- Același design complet 1:1, dar adaptat la nuanța Sky -->
+                    <div class="bg-sky-950/30 rounded p-3 text-xs font-mono text-sky-200 break-all space-y-3">
+                        
+                        <!-- DATA MUTATĂ LA ÎNCEPUT -->
+                        <div class="flex flex-col border-b border-sky-900/50 pb-1.5 bg-sky-500/10 -mx-3 px-3 pt-1 rounded-t">
+                            <span class="opacity-90 text-[10px] uppercase mb-0.5 font-bold text-sky-400">Data_Evenimentului:</span>
+                            <span class="text-left text-white font-bold text-[13px] tracking-wide">24.06.2026 (Duminică)</span>
+                        </div>
+
+                        <div class="flex flex-col border-b border-sky-900/50 pb-1.5">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Loca_ia:</span>
+                            <span class="text-left text-sky-100 font-medium whitespace-pre-wrap">Restaurant Aristocrat Salon</span>
+                        </div>
+                        <div class="flex flex-col border-b border-sky-900/50 pb-1.5 opacity-50">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Personajul_Dorit:</span>
+                            <span class="text-left text-sky-100 font-medium">N/A</span>
+                        </div>
+                        <div class="flex flex-col border-b border-sky-900/50 pb-1.5">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Nume_S_rb_torit:</span>
+                            <span class="text-left text-sky-100 font-medium">Raducan Maya Karina (3 ani)</span>
+                        </div>
+                        <div class="flex flex-col border-b border-sky-900/50 pb-1.5 opacity-50">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Num_r_Copii:</span>
+                            <span class="text-left text-sky-100 font-medium">N/A</span>
+                        </div>
+                        <div class="flex justify-between border-b border-sky-900/50 pb-1.5">
+                            <div class="flex flex-col border-r border-sky-900/50 pr-4 w-1/2">
+                                <span class="opacity-70 text-[10px] uppercase mb-0.5">Ora_de__nceput:</span>
+                                <span class="text-left text-sky-100 font-medium">14:00</span>
+                            </div>
+                            <div class="flex flex-col pl-4 w-1/2">
+                                <span class="opacity-70 text-[10px] uppercase mb-0.5">Durata__ore_:</span>
+                                <span class="text-left text-sky-100 font-medium">4</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col border-b border-sky-900/50 pb-1.5">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Metod__de_Plat__:</span>
+                            <span class="text-left text-sky-100 font-medium">Factură avans</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Situa_ie_Încasare:</span>
+                            <span class="text-left text-sky-100 font-medium">Plată în avans</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EVENT 3: Ursitoare (MOV / FUCHSIA) -->
+                <div class="bg-black/80 rounded-xl p-4 text-fuchsia-100 border-2 card-fuchsia w-full shadow-lg relative">
+                    <div class="absolute top-0 right-0 bg-fuchsia-500/20 text-fuchsia-300 px-2 py-1 rounded-bl-xl font-bold text-[9px] uppercase border-b border-l border-fuchsia-500/50">
+                        VERIFICAT DB
+                    </div>
+                    <div class="flex justify-between items-center mb-4 pb-3 border-b border-fuchsia-500/30">
+                        <div class="font-bold text-fuchsia-400 uppercase tracking-wider text-[11px] flex items-center gap-2">
+                            <span class="text-lg">🐻</span> ROL/PACHET: URSITOARE
+                        </div>
+                    </div>
+                    <!-- Același design complet 1:1, nuanța Fuchsia -->
+                    <div class="bg-fuchsia-950/30 rounded p-3 text-xs font-mono text-fuchsia-200 break-all space-y-3">
+                        
+                        <!-- DATA MUTATĂ LA ÎNCEPUT -->
+                        <div class="flex flex-col border-b border-fuchsia-900/50 pb-1.5 bg-fuchsia-500/10 -mx-3 px-3 pt-1 rounded-t">
+                            <span class="opacity-90 text-[10px] uppercase mb-0.5 font-bold text-fuchsia-400">Data_Evenimentului:</span>
+                            <span class="text-left text-white font-bold text-[13px] tracking-wide">24.06.2026 (Duminică)</span>
+                        </div>
+
+                        <div class="flex flex-col border-b border-fuchsia-900/50 pb-1.5">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Loca_ia:</span>
+                            <span class="text-left text-fuchsia-100 font-medium whitespace-pre-wrap">Restaurant Aristocrat Salon</span>
+                        </div>
+                        <div class="flex flex-col border-b border-fuchsia-900/50 pb-1.5">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Detalii_Personaje:</span>
+                            <span class="text-left text-fuchsia-100 font-medium">Ursitoare Premium (3 buc)</span>
+                        </div>
+                        <div class="flex flex-col border-b border-fuchsia-900/50 pb-1.5">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Nume_S_rb_torit:</span>
+                            <span class="text-left text-fuchsia-100 font-medium">Raducan Maya Karina (3 ani)</span>
+                        </div>
+                        <div class="flex flex-col border-b border-fuchsia-900/50 pb-1.5 opacity-50">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Num_r_Copii:</span>
+                            <span class="text-left text-fuchsia-100 font-medium">N/A</span>
+                        </div>
+                        <div class="flex justify-between border-b border-fuchsia-900/50 pb-1.5">
+                            <div class="flex flex-col border-r border-fuchsia-900/50 pr-4 w-1/2">
+                                <span class="opacity-70 text-[10px] uppercase mb-0.5">Ora_de__nceput:</span>
+                                <span class="text-left text-fuchsia-100 font-medium">20:00</span>
+                            </div>
+                            <div class="flex flex-col pl-4 w-1/2 opacity-50">
+                                <span class="opacity-70 text-[10px] uppercase mb-0.5">Durata__ore_:</span>
+                                <span class="text-left text-fuchsia-100 font-medium">N/A</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col border-b border-fuchsia-900/50 pb-1.5">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Metod__de_Plat__:</span>
+                            <span class="text-left text-fuchsia-100 font-medium">Factură avans</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="opacity-70 text-[10px] uppercase mb-0.5">Situa_ie_Încasare:</span>
+                            <span class="text-left text-fuchsia-100 font-medium">Plată în avans</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- BOTTOM LEFT: Simulator AI -->
+        <section class="bg-[#14161a] rounded-2xl border border-white/5 flex flex-col overflow-hidden shadow-xl">
+            <header class="p-3 border-b border-white/5 flex justify-between items-center bg-black/20 shrink-0">
+                <h2 class="font-bold text-sm text-gray-200 flex items-center gap-2">🤖 Simulator AI (Shadow)</h2>
+                <div class="bg-gray-800 text-gray-300 px-3 py-1 rounded text-[9px] font-bold tracking-widest uppercase">3 EXTRACTII MULTIPLE</div>
+            </header>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4 relative">
+                <div class="flex flex-col items-end w-full">
+                    <div class="flex justify-between items-end w-full mb-1 px-1">
+                        <span class="text-[8px] font-bold text-gray-500 uppercase tracking-widest">🤖 Răspuns Generat</span>
+                    </div>
+                    <div class="bg-[#1e1c27] text-gray-200 p-4 rounded-2xl rounded-tr-none w-full text-[13px] border border-purple-500/20 shadow-lg leading-relaxed">
+                        Extrag absolut toate datele aferente fiecărei comenzi. Formularul 1 (Verde), Formularul 2 (Albastru) și Formularul 3 (Mov). Toate câmpurile sunt prezente identic!
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- BOTTOM RIGHT: JSON Simulat SCROLL -->
+        <section class="bg-[#24151f] rounded-2xl border border-pink-500/30 flex flex-col overflow-hidden shadow-xl">
+            <header class="p-3 border-b border-pink-500/30 flex justify-between items-center bg-[#301625] shrink-0">
+                <h2 class="font-bold text-sm text-pink-500 opacity-90 flex items-center gap-2">👁️ JSON Simulat</h2>
+                <div class="text-[9px] text-[#ec4899] opacity-70 bg-pink-900/40 px-2 py-0.5 rounded border border-pink-500/30 font-mono tracking-widest">ACTUALIZAT: 03:09:32</div>
+            </header>
+            <div class="flex-1 overflow-y-auto p-3 relative">
+                <div class="bg-black/80 rounded-xl border border-pink-500/20 relative p-4 h-full custom-scroll overflow-y-auto shadow-inner">
+                    <pre class="text-[11px] text-emerald-400 font-mono whitespace-pre-wrap leading-relaxed tracking-wider">
+[
+  {
+    <span class="text-pink-400">"ID_Draft"</span>: "evt_001",
+    <span class="text-pink-400">"Pachet"</span>: "Animație",
+    <span class="text-pink-400">"Date_Extrase"</span>: {
+      "Loca_ia": "Grădinița Teghes...",
+      "Num_r_Copii": "15-17",
+      "Durata__ore_": "2",
+      "Ora_de__nceput": "10:00",
+      "Nume_S_rb_torit": "Raducan Maya",
+      "V_rst__S_rb_torit": "3 ani",
+      "Personajul_Dorit": "Mickey",
+      "Data_Evenimentului": "23.06.2026",
+      "Metod__de_Plat__": "Factura",
+      "Situa_ie_Încasare": "Plata in avans"
+    }
+  },
+  {
+    <span class="text-pink-400">"ID_Draft"</span>: "evt_002",
+    <span class="text-pink-400">"Pachet"</span>: "Cabină Foto",
+    <span class="text-pink-400">"Date_Extrase"</span>: {
+      "Loca_ia": "Restaurant Aristocrat",
+      "Durata__ore_": "4",
+      "Ora_de__nceput": "14:00",
+      "Data_Evenimentului": "24.06.2026",
+      "Metod__de_Plat__": "Factura",
+      "Situa_ie_Încasare": "Plata in avans"
+    }
+  }
+]</pre>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</main>
+
+</body>
+</html>

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup V4: Multi-Eveniment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f1115; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col bg-[#0b0c10]">
+
+<!-- NAVBAR -->
+<header class="h-14 border-b border-white/5 bg-[#14161a] flex items-center px-6 justify-between shrink-0 shadow-md relative z-10">
+    <div class="flex items-center gap-3">
+        <span class="bg-gradient-to-r from-purple-500 to-pink-600 text-white font-black px-2 py-1 rounded text-[11px] shadow-[0_0_15px_rgba(168,85,247,0.4)]">AI</span>
+        <h1 class="text-base font-bold tracking-wider">Manager AI <span class="text-[10px] text-yellow-500 uppercase tracking-widest font-normal ml-3 border-l border-white/10 pl-3">Design Multi-Eveniment (3 Petreceri)</span></h1>
+    </div>
+</header>
+
+<!-- MAIN WORKSPACE -->
+<main class="flex-1 flex gap-4 p-4 overflow-hidden h-[calc(100vh-56px)]">
+    
+    <!-- LEFT SIDEBAR: Clienți (Live) -->
+    <section class="w-[280px] bg-[#14161a] rounded-2xl border border-white/5 flex flex-col overflow-hidden shrink-0 shadow-2xl h-full">
+        <header class="px-5 py-3 border-b border-white/5 flex justify-between items-center bg-black/20 shrink-0">
+            <h2 class="font-bold text-sm text-gray-200">📇 Clienți (Live)</h2>
+            <span class="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded font-mono">253</span>
+        </header>
+        <div class="flex-1 overflow-y-auto p-3 space-y-1">
+            <div class="p-3 bg-white/10 rounded-xl border border-white/10 flex items-center gap-3 cursor-pointer shadow-inner">
+                <div class="w-10 h-10 rounded-full bg-yellow-900/50 border border-yellow-500 flex justify-center items-center font-bold text-yellow-400 text-[10px] flex-col leading-none"><span>VIP</span><span>U19</span></div>
+                <div>
+                    <div class="font-bold text-[13px] text-white">Superparty-19</div>
+                    <div class="text-[10px] text-yellow-400 font-mono mt-0.5 font-bold">3 EVENIMENTE ACTIVE</div>
+                </div>
+            </div>
+            <div class="p-3 hover:bg-white/5 rounded-xl flex items-center gap-3 cursor-pointer border border-transparent transition-colors mt-2">
+                <div class="w-10 h-10 rounded-full bg-gray-800 flex justify-center items-center text-xs text-gray-500 font-bold">K8</div>
+                <div>
+                    <div class="font-bold text-[13px] text-gray-400">Kassya-8</div>
+                    <div class="text-[10px] text-gray-600 font-mono mt-0.5">+40747924794</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- RIGHT AREA: 2x2 GRID -->
+    <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-4 h-full min-w-0">
+        
+        <!-- TOP LEFT: Chat Client -->
+        <section class="bg-[#14161a] rounded-2xl border border-white/5 flex flex-col overflow-hidden shadow-xl">
+            <header class="p-3 border-b border-white/5 flex justify-between items-center bg-black/20 shrink-0">
+                <h2 class="font-bold text-sm text-gray-200 flex items-center gap-2">💬 Chat Client</h2>
+                <div class="bg-red-500/10 text-red-500 border border-red-500/20 px-3 py-1 rounded text-[9px] font-black tracking-widest uppercase">
+                    <span class="animate-pulse mr-1">●</span> AI OFF (SHADOW)
+                </div>
+            </header>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                <div class="flex flex-col items-start w-full">
+                    <div class="text-[8px] font-bold text-purple-400 uppercase tracking-widest mb-1 ml-1">👤 TRIMIS DE OM</div>
+                    <div class="bg-purple-900/40 text-white p-3 rounded-2xl rounded-tl-none max-w-[85%] text-[13px] border border-purple-500/30">
+                        Aș vrea pe sâmbătă animație cu Mickey la grădiniță, iar duminică vrem cabina foto la restaurant, plus ursitoare seara! Le puteți face pe toate?
+                    </div>
+                </div>
+                <div class="flex flex-col items-end w-full mt-4">
+                    <div class="bg-gray-800/80 text-white p-3 rounded-2xl rounded-tr-none max-w-[85%] text-[13px] border border-white/10">
+                        Sigur, am notat toate cele 3 evenimente separat. Verificați dacă datele sunt corecte!
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TOP RIGHT: Acțiuni CRM (Real) MULTI-EVENT -->
+        <section class="bg-gradient-to-br from-[#14161a] to-emerald-900/10 rounded-2xl border border-emerald-500/20 flex flex-col overflow-hidden shadow-[0_0_30px_rgba(16,185,129,0.05)]">
+            <header class="p-3 border-b border-emerald-500/20 flex justify-between items-center bg-emerald-900/20 shrink-0">
+                <h2 class="font-bold text-sm text-yellow-400 flex items-center gap-2">📑 Acțiuni CRM (3 Extrase)</h2>
+                <div class="bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-1.5 rounded text-[10px] font-black tracking-widest uppercase shadow-lg shadow-emerald-500/20">
+                    CREARE ON
+                </div>
+            </header>
+            <div class="flex-1 overflow-y-auto p-3 space-y-4">
+                
+                <!-- EVENT 1 -->
+                <div class="bg-black/60 rounded-xl border border-emerald-900/50 w-full overflow-hidden">
+                    <div class="bg-emerald-900/30 px-3 py-2 border-b border-emerald-900/50 flex justify-between items-center">
+                        <span class="font-bold text-emerald-400 text-xs flex items-center gap-2">🎉 Petrecerea 1 (Animație)</span>
+                        <span class="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-bold uppercase">Sâmbătă, 23.06</span>
+                    </div>
+                    <div class="p-3">
+                        <div class="flex justify-between border-b border-emerald-900/50 pb-1.5 mb-1.5">
+                            <span class="text-emerald-500/70 text-[9px] font-bold uppercase tracking-widest">Locația</span>
+                            <span class="text-white font-semibold text-[11px] text-right">Grădinița Tegheș</span>
+                        </div>
+                        <div class="flex justify-between border-b border-emerald-900/50 pb-1.5 mb-1.5">
+                            <span class="text-emerald-500/70 text-[9px] font-bold uppercase tracking-widest">Personaje</span>
+                            <span class="text-white font-semibold text-[11px] text-right">Mickey Mouse</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-emerald-500/70 text-[9px] font-bold uppercase tracking-widest">Sărbătorit</span>
+                            <span class="text-white font-semibold text-[11px] text-right">Maya (3 ani)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EVENT 2 -->
+                <div class="bg-black/60 rounded-xl border border-blue-900/50 w-full overflow-hidden">
+                    <div class="bg-blue-900/30 px-3 py-2 border-b border-blue-900/50 flex justify-between items-center">
+                        <span class="font-bold text-blue-400 text-xs flex items-center gap-2">📸 Petrecerea 2 (Cabină Foto)</span>
+                        <span class="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-bold uppercase">Duminică, 24.06, 14:00</span>
+                    </div>
+                    <div class="p-3">
+                        <div class="flex justify-between border-b border-blue-900/50 pb-1.5 mb-1.5">
+                            <span class="text-blue-500/70 text-[9px] font-bold uppercase tracking-widest">Locația</span>
+                            <span class="text-white font-semibold text-[11px] text-right">Restaurant Salon (Duminică)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-blue-500/70 text-[9px] font-bold uppercase tracking-widest">Durată Cabina</span>
+                            <span class="text-white font-semibold text-[11px] text-right">4 ore</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EVENT 3 -->
+                <div class="bg-black/60 rounded-xl border border-purple-900/50 w-full overflow-hidden">
+                    <div class="bg-purple-900/30 px-3 py-2 border-b border-purple-900/50 flex justify-between items-center">
+                        <span class="font-bold text-purple-400 text-xs flex items-center gap-2">🐻 Petrecerea 3 (Ursitoare)</span>
+                        <span class="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded font-bold uppercase">Duminică, 24.06, 20:00</span>
+                    </div>
+                    <div class="p-3">
+                        <div class="flex justify-between border-b border-purple-900/50 pb-1.5 mb-1.5">
+                            <span class="text-purple-500/70 text-[9px] font-bold uppercase tracking-widest">Locația</span>
+                            <span class="text-white font-semibold text-[11px] text-right">Același Restaurant Salon</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-purple-500/70 text-[9px] font-bold uppercase tracking-widest">Moment</span>
+                            <span class="text-white font-semibold text-[11px] text-right">Seara, 3 Urstioare Premium</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- BOTTOM LEFT: Simulator AI -->
+        <section class="bg-[#14161a] rounded-2xl border border-white/5 flex flex-col overflow-hidden shadow-xl">
+            <header class="p-3 border-b border-white/5 flex justify-between items-center bg-black/20 shrink-0">
+                <h2 class="font-bold text-sm text-gray-200 flex items-center gap-2">🤖 Simulator AI (Shadow)</h2>
+                <div class="bg-gray-800 text-gray-300 px-3 py-1 rounded text-[9px] font-bold tracking-widest uppercase">3 DRAFTS CREATE</div>
+            </header>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                <div class="flex flex-col items-end w-full">
+                    <div class="flex justify-between items-end w-full mb-1 px-1">
+                        <span class="text-[8px] font-bold text-gray-500 uppercase tracking-widest">🤖 Gândire Secvențială AI</span>
+                        <span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-bold border border-emerald-500/20">MULTIPLE_EVENTS</span>
+                    </div>
+                    <div class="bg-[#1e1c27] text-gray-200 p-4 rounded-2xl rounded-tr-none w-full text-[13px] border border-purple-500/20 shadow-lg leading-relaxed">
+                        Am detectat cereri multiple. Generez 3 formulare distincte:
+                        <ul class="list-disc ml-5 mt-2 opacity-80 text-xs space-y-1">
+                            <li>Formular 1: Animație Gădiniță Sâmbătă</li>
+                            <li>Formular 2: Cabină Foto Duminică (14:00)</li>
+                            <li>Formular 3: Ursitoare Duminică (20:00)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- BOTTOM RIGHT: JSON Simulat MULTI-EVENT -->
+        <section class="bg-gradient-to-tl from-[#14161a] to-pink-900/10 rounded-2xl border border-pink-500/20 flex flex-col overflow-hidden shadow-xl">
+            <header class="p-3 border-b border-pink-500/20 flex justify-between items-center bg-pink-900/20 shrink-0">
+                <h2 class="font-bold text-sm text-pink-400 flex items-center gap-2">👁️ JSON Simulat (Array)</h2>
+            </header>
+            <div class="flex-1 overflow-y-auto p-0 bg-black/40 h-full relative">
+                <div class="bg-black/80 m-3 rounded-xl border border-white/5 relative p-4 custom-scroll h-[calc(100%-24px)] overflow-y-auto">
+                    <div class="absolute top-0 right-0 bg-yellow-500/20 px-2 py-1 text-[8px] rounded-bl uppercase tracking-widest text-yellow-400 font-mono border-b border-l border-yellow-500/30">
+                        ARRAY CU 3 OBIECTE
+                    </div>
+                    <pre class="text-[11px] text-emerald-300 font-mono whitespace-pre-wrap leading-relaxed mt-2">
+[
+  {
+    "ID_Draft": "evt_001",
+    "Pachet": "Animație",
+    "Detalii": {
+      "Locatia": "Grădinița Tegheș",
+      "Data": "23.06.2026",
+      "Personaj": "Mickey Mouse"
+    }
+  },
+  {
+    "ID_Draft": "evt_002",
+    "Pachet": "Cabină Foto",
+    "Detalii": {
+      "Locatia": "Restaurant Salon",
+      "Data": "24.06.2026",
+      "Ora": "14:00"
+    }
+  },
+  {
+    "ID_Draft": "evt_003",
+    "Pachet": "Ursitoare",
+    "Detalii": {
+      "Locatia": "Restaurant Salon",
+      "Data": "24.06.2026",
+      "Ora": "20:00"
+    }
+  }
+]</pre>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</main>
+
+</body>
+</html>

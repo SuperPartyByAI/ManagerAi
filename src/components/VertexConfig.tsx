@@ -326,22 +326,66 @@ export default function VertexConfig() {
               <div className="text-center py-8 text-[var(--color-dim)] animate-pulse">⏳ Se încarcă configurația...</div>
             ) : activeTab === "config" ? (
               <>
-                <div>
-                  <label className="text-[11px] uppercase tracking-wider text-[var(--color-dim)] font-bold block mb-1">System Prompt</label>
-                  <p className="text-[10px] text-[var(--color-dim)] mb-2 opacity-70">
-                    {selectedBrand === "GLOBAL" ? "Prompt global — se aplică dacă brand-ul nu are prompt propriu." : `Prompt specific pentru ${currentBrand?.label || selectedBrand}.`}
-                  </p>
-                  <textarea
-                    value={config.system_prompt || ""}
-                    onChange={(e) => setConfig((p) => ({ ...p, system_prompt: e.target.value }))}
-                    rows={6}
-                    className="w-full bg-black/30 border border-[var(--color-border)] rounded-lg px-3 py-3 text-sm text-[var(--color-text)] font-mono leading-relaxed resize-none focus:outline-none focus:border-purple-500/50"
-                    placeholder="Ești asistentul virtual..."
-                  />
-                  <button onClick={() => save("system_prompt", config.system_prompt || "")}
-                    className="w-full mt-2 py-2.5 rounded-lg font-semibold text-sm transition-all bg-purple-600 hover:bg-purple-500 text-white">
-                    {saving === "system_prompt" ? "✅ Salvat!" : "💾 Salvează Promptul"}
-                  </button>
+                <div className="space-y-6">
+                  {/* Sistem și Reguli (System and Continuations) */}
+                  <div className="bg-black/20 border border-[var(--color-border)] rounded-lg p-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-dim)] mb-4">🧠 Core Prompts & Reguli (Sursă Unica de Adevăr)</h3>
+                    <div className="space-y-4">
+                      {[
+                        { key: "system_prompt", label: "Sistem Prompt Principal", desc: "Rolul de bază al AI-ului. Definitoriu." },
+                        { key: "prompt_rule_event_context", label: "Filtrul Context Evenimente (Anti-Dublare)", desc: "Regula critică pentru a evita dublarea petrecerilor când clientul dă o altă dată." },
+                        { key: "prompt_continuation_actualizare", label: "Regula: Continuare UPDATE", desc: "Se declanșează dacă e nevoie de modificare" },
+                        { key: "prompt_continuation_anuleaza", label: "Regula: Continuare ANULARE", desc: "Se declanșează dacă vine un trigger de anulare" },
+                        { key: "prompt_continuation_reactivare", label: "Regula: Continuare RESTAURARE", desc: "Pentru reveniri după anulare" },
+                        { key: "prompt_continuation_default", label: "Regula: Continuare DEFAULT", desc: "Baza când AI-ul termină un anumit apel tehnic." },
+                      ].map(p => (
+                        <div key={p.key} className="border-b border-white/5 pb-4 last:border-0 last:pb-0">
+                          <label className="text-[11px] uppercase tracking-wider text-[var(--color-dim)] font-bold block mb-1">{p.label}</label>
+                          <p className="text-[10px] text-[var(--color-dim)] mb-2 opacity-70">{p.desc}</p>
+                          <textarea
+                            value={config[p.key] || ""}
+                            onChange={(e) => setConfig((prev) => ({ ...prev, [p.key]: e.target.value }))}
+                            rows={p.key === 'system_prompt' ? 6 : 3}
+                            className="w-full bg-black/30 border border-[var(--color-border)] rounded-lg px-3 py-3 text-sm text-[var(--color-text)] font-mono leading-relaxed resize-none focus:outline-none focus:border-purple-500/50"
+                            placeholder="Introduceți textul aici..."
+                          />
+                          <button onClick={() => save(p.key, config[p.key] || "")}
+                            className="w-full mt-2 py-2 rounded font-semibold text-xs transition-all bg-white/10 hover:bg-white/20 text-white">
+                            {saving === p.key ? "✅ Salvat!" : "💾 Salvează"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Instrumente (Tools JSON Descriptions) */}
+                  <div className="bg-black/20 border border-[var(--color-border)] rounded-lg p-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-dim)] mb-4">🔧 Descrieri Structuri API (Tools)</h3>
+                    <div className="space-y-4">
+                      {[
+                        { key: "tool_desc_noteaza_petrecere", label: "Tool: Notează Petrecere", desc: "" },
+                        { key: "tool_desc_actualizeaza_petrecere", label: "Tool: Actualizează Petrecere", desc: "" },
+                        { key: "tool_desc_anuleaza_petrecere", label: "Tool: Anulează Petrecere", desc: "" },
+                        { key: "tool_desc_restaureaza_petrecere", label: "Tool: Restaurează Petrecere", desc: "" },
+                        { key: "tool_desc_cauta_petreceri", label: "Tool: Caută Petreceri", desc: "" },
+                        { key: "tool_desc_escaleaza", label: "Tool: Escalează către Om", desc: "" },
+                      ].map(p => (
+                        <div key={p.key} className="border-b border-white/5 pb-4 last:border-0 last:pb-0">
+                          <label className="text-[11px] uppercase tracking-wider text-[var(--color-dim)] font-bold block mb-1">{p.label}</label>
+                          <textarea
+                            value={config[p.key] || ""}
+                            onChange={(e) => setConfig((prev) => ({ ...prev, [p.key]: e.target.value }))}
+                            rows={3}
+                            className="w-full bg-black/30 border-l-[3px] border-[var(--color-border)] border-l-cyan-500/50 rounded-lg px-3 py-3 text-sm text-[var(--color-text)] font-mono leading-relaxed resize-none focus:outline-none focus:border-cyan-500/50"
+                          />
+                          <button onClick={() => save(p.key, config[p.key] || "")}
+                            className="w-full mt-2 py-2 rounded font-semibold text-xs transition-all bg-white/10 hover:bg-white/20 text-white border border-white/5">
+                            {saving === p.key ? "✅ Salvat!" : "💾 Salvează"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <div className="bg-black/20 border border-[var(--color-border)] rounded-lg p-4">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-dim)] mb-3">🧠 Model & Parametri</h3>

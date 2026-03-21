@@ -853,6 +853,7 @@ export default function CopilotPage() {
                 )}
 
                 <div className="flex-1 bg-black/40 border border-[var(--color-border)] rounded-lg p-4 overflow-y-auto mb-2 relative flex flex-col gap-3">
+                   <div className="text-red-500 font-bold border border-red-500 rounded p-1 text-center text-xs uppercase mb-2">Debug Indicator Intern: Array-ul are {messages.length} mesaje</div>
                    {messages.length === 0 ? (
                      <div className="m-auto text-center text-[var(--color-dim)] italic">Niciun mesaj găsit în baza de date.</div>
                     ) : (

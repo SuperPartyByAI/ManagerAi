@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup Nou: Layout Eficient Manager AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f1115; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col">
+
+<!-- NAVBAR -->
+<header class="h-14 border-b border-white/5 bg-[#14161a] flex items-center px-6 justify-between shrink-0 shadow-md relative z-10">
+    <div class="flex items-center gap-3">
+        <span class="bg-gradient-to-r from-purple-500 to-pink-600 text-white font-black px-2 py-1 rounded text-[11px] shadow-[0_0_15px_rgba(168,85,247,0.4)]">AI</span>
+        <h1 class="text-base font-bold tracking-wider">Manager AI <span class="text-[10px] text-gray-500 uppercase tracking-widest font-normal ml-3 border-l border-white/10 pl-3">Design Centralizat (V2)</span></h1>
+    </div>
+    <div class="flex gap-3">
+        <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20 font-bold uppercase tracking-wider flex items-center gap-2">🟢 Hub Activ</span>
+    </div>
+</header>
+
+<!-- MAIN WORKSPACE -->
+<main class="flex-1 flex gap-5 p-5 overflow-hidden bg-gradient-to-b from-black to-[#0a0a0c]">
+    
+    <!-- COL 1: SIDEBAR (Clienți) -->
+    <section class="w-[280px] bg-[#14161a] rounded-2xl border border-white/5 flex flex-col overflow-hidden shrink-0 shadow-2xl">
+        <header class="px-5 py-4 border-b border-white/5 flex justify-between items-center bg-black/20">
+            <h2 class="font-bold text-sm text-gray-200">📇 Clienți (Live)</h2>
+            <span class="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded font-mono">253</span>
+        </header>
+        <div class="flex-1 overflow-y-auto p-3 space-y-1">
+            <!-- Active Client -->
+            <div class="p-3 bg-white/10 rounded-xl border border-white/10 flex items-center gap-3 cursor-pointer shadow-inner">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold shadow-lg">K9</div>
+                <div>
+                    <div class="font-bold text-[13px] text-white">Kassya-9</div>
+                    <div class="text-[10px] text-purple-300 font-mono mt-0.5">+40769029474</div>
+                </div>
+            </div>
+            
+            <div class="p-3 hover:bg-white/5 rounded-xl flex items-center gap-3 cursor-pointer border border-transparent transition-colors">
+                <div class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-500">W21</div>
+                <div>
+                    <div class="font-bold text-[13px] text-gray-400">Wowparty-21</div>
+                    <div class="text-[10px] text-gray-600 font-mono mt-0.5">+40763795919</div>
+                </div>
+            </div>
+            
+            <div class="p-3 hover:bg-white/5 rounded-xl flex items-center gap-3 cursor-pointer border border-transparent transition-colors">
+                <div class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-500">K8</div>
+                <div>
+                    <div class="font-bold text-[13px] text-gray-400">Kassya-8</div>
+                    <div class="text-[10px] text-gray-600 font-mono mt-0.5">+40747924794</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- COL 2: UNIFIED CHAT THREAD (Chat + AI Intercalat) -->
+    <section class="flex-1 bg-[#14161a] rounded-2xl border border-white/5 flex flex-col overflow-hidden relative shadow-2xl">
+        <header class="px-5 py-4 border-b border-white/5 flex justify-between items-center bg-black/20 shrink-0">
+            <div class="flex items-center gap-3">
+                <h2 class="font-bold text-[15px] flex items-center gap-2">💬 Fir Unificat de Conversație</h2>
+                <span class="text-[11px] text-gray-500 bg-gray-900 px-2 py-0.5 rounded-full border border-gray-800">Uman + Reflexii AI</span>
+            </div>
+            <div class="bg-red-500/10 text-red-500 border border-red-500/20 px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> AI Oprit (Shadow)
+            </div>
+        </header>
+        
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            
+            <!-- System / Timestamp break -->
+            <div class="flex justify-center w-full my-6">
+                <span class="text-[10px] uppercase font-bold tracking-widest text-gray-600 bg-black/40 px-4 py-1 rounded-full">Astăzi</span>
+            </div>
+
+            <!-- Client Message -->
+            <div class="flex flex-col items-start w-full">
+                <div class="bg-gray-800/80 text-white p-3.5 px-4 rounded-2xl rounded-tl-sm max-w-[75%] text-[13px] border border-white/5 leading-relaxed shadow-sm">
+                    Bună ziua. Astăzi anulează doamna contabil factura până mâine aveți bănuții înapoi 🤗
+                </div>
+                <div class="text-[10px] text-gray-500 mt-1.5 ml-2 font-medium">13:13 • Client</div>
+            </div>
+
+            <!-- Interleaved AI Shadow Thought -->
+            <div class="flex justify-center w-full my-8">
+                <div class="bg-gradient-to-b from-purple-900/30 to-purple-900/10 border border-purple-500/30 rounded-2xl p-4 max-w-[85%] w-full shadow-[0_5px_30px_rgba(168,85,247,0.08)] relative">
+                    <div class="absolute -top-3 left-6 bg-[#1a1721] px-3 py-0.5 text-[9px] rounded-full border border-purple-500/30 font-bold text-purple-300 uppercase tracking-widest flex items-center gap-2 shadow-lg">
+                        <span>🧠</span> Gândire AI (Ce ar fi răspuns)
+                    </div>
+                    
+                    <div class="text-[13px] text-purple-200/90 italic leading-loose mt-2">
+                        "Am notat toate detaliile pentru petrecerea cu Peppa și Mickey/Minnie, care va avea loc pe 23.06.2026, la Grădinița Tegheș... Costul total este de 450 lei. Am înțeles că veți efectua plata înainte de data evenimentului. Mai aveți nevoie de ceva?"
+                    </div>
+                    
+                    <div class="mt-4 flex gap-2 pt-3 border-t border-purple-500/10">
+                        <span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/20 font-black tracking-wider">99% ÎNCREDERE</span>
+                        <span class="text-[9px] bg-blue-500/20 text-blue-300 px-2 py-1 rounded border border-blue-500/20 font-bold uppercase tracking-wider">ETAPA: BACKGROUND-SYNC</span>
+                        <span class="text-[9px] bg-gray-800 text-gray-400 px-2 py-1 rounded border border-gray-700 font-bold uppercase tracking-wider ml-auto">Doar Analiză Internă</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Human Agent Reply -->
+            <div class="flex flex-col items-end w-full pb-8">
+                <div class="bg-gradient-to-br from-emerald-700/80 to-emerald-800/80 text-emerald-50 p-3.5 px-4 rounded-2xl rounded-tr-sm max-w-[75%] text-[13px] border border-emerald-500/30 leading-relaxed shadow-lg shadow-emerald-900/20">
+                    În regulă! Mulțumesc mult!
+                </div>
+                <div class="text-[10px] text-emerald-500/60 mt-1.5 mr-2 font-medium">13:14 • Agent (Tu)</div>
+            </div>
+            
+        </div>
+    </section>
+
+    <!-- COL 3: DATA INSPECTOR (CRM & JSON Stacked) -->
+    <section class="w-[400px] flex flex-col gap-5 overflow-hidden shrink-0">
+        
+        <!-- CRM ACTIONS (Top Panel - Expands) -->
+        <div class="flex-1 bg-gradient-to-b from-[#14161a] to-emerald-950/10 rounded-2xl border border-emerald-500/20 flex flex-col overflow-hidden relative shadow-[0_0_40px_rgba(16,185,129,0.06)]">
+            <header class="px-5 py-4 border-b border-emerald-500/20 flex justify-between items-center bg-black/20 shrink-0">
+                <h2 class="font-bold text-sm text-emerald-400 flex items-center gap-2"><span>✅</span> Extracții & CRM</h2>
+                <div class="bg-emerald-500 hover:bg-emerald-400 text-black px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-colors">
+                    Scriere ON
+                </div>
+            </header>
+            <div class="flex-1 overflow-y-auto p-5">
+                
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-xl shadow-inner">🎉</div>
+                    <div>
+                        <div class="text-[15px] font-black text-white tracking-wide">Pachet: Animație</div>
+                        <div class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest flex items-center gap-1 mt-0.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Verificat Database</div>
+                    </div>
+                </div>
+
+                <div class="bg-black/60 rounded-xl p-4 text-emerald-100 border border-emerald-900/50 shadow-inner">
+                    
+                    <div class="flex flex-col border-b border-emerald-900/50 pb-3 mb-3">
+                        <span class="text-emerald-500/70 text-[9px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Locația Extrasă</span>
+                        <span class="text-white font-semibold text-[13px] leading-snug">Grădinița Teghes, Comuna Domnești, Strada Transilvaniei 38</span>
+                    </div>
+                    
+                    <div class="flex flex-col border-b border-emerald-900/50 pb-3 mb-3">
+                        <span class="text-emerald-500/70 text-[9px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Personaje</span>
+                        <span class="text-white font-semibold text-[13px] leading-snug">Peppa, Mickey/Minnie mascot</span>
+                    </div>
+
+                    <div class="flex flex-col border-b border-emerald-900/50 pb-3 mb-3">
+                        <span class="text-emerald-500/70 text-[9px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg> Sărbătorit</span>
+                        <span class="text-white font-semibold text-[13px] leading-snug">Raducan Maya Karina Ilinca <span class="text-gray-400 font-normal ml-1">(3 ani)</span></span>
+                    </div>
+                    
+                    <div class="flex flex-col pb-1">
+                        <span class="text-emerald-500/70 text-[9px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> Data Eveniment</span>
+                        <span class="text-white font-semibold text-[13px] leading-snug">23.06.2026 • 10:00 <span class="text-emerald-300/60 font-mono ml-1">(Durată: 2 ore)</span></span>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- RAW JSON SIMULAT (Bottom Panel - Fixed Height) -->
+        <div class="h-[280px] bg-[#14161a] rounded-2xl border border-pink-500/10 flex flex-col overflow-hidden shrink-0 shadow-lg">
+            <header class="px-5 py-3 border-b border-pink-500/10 flex justify-between items-center bg-black/30 shrink-0">
+                <h2 class="font-bold text-[13px] text-pink-500/80 flex items-center gap-2"><span>⚙️</span> JSON Raw Data</h2>
+                <span class="text-[9px] text-pink-500/50 bg-pink-500/5 px-2 py-0.5 rounded font-mono border border-pink-500/10">03:09:32</span>
+            </header>
+            <div class="flex-1 overflow-y-auto p-4 bg-black/80 relative">
+                <pre class="text-[10.5px] text-pink-200/80 font-mono whitespace-pre-wrap leading-relaxed">
+{
+  "Loca_ia": "Grădinița Teghes, Comuna Domnești, Strada Transilvaniei 38",
+  "Num_r_Copii": "15-17",
+  "Durata__ore_": "2",
+  "Ora_de__nceput": "10:00",
+  "Nume_S_rb_torit": "Raducan Maya Karina Ilinca",
+  "V_rst__S_rb_torit": "3 ani",
+  "Personajul_Dorit": "Peppa, Mickey/Minnie mascot",
+  "Data_Evenimentului": "23.06.2026",
+  "Situa_ie_Încasare": "Plata se va efectua cu 2 saptamani inainte de eveniment"
+}</pre>
+            </div>
+        </div>
+
+    </section>
+</main>
+
+</body>
+</html>

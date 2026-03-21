@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup V3: 2x2 Grid Layout</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f1115; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col bg-[#0b0c10]">
+
+<!-- NAVBAR -->
+<header class="h-14 border-b border-white/5 bg-[#14161a] flex items-center px-6 justify-between shrink-0 shadow-md relative z-10">
+    <div class="flex items-center gap-3">
+        <span class="bg-gradient-to-r from-purple-500 to-pink-600 text-white font-black px-2 py-1 rounded text-[11px] shadow-[0_0_15px_rgba(168,85,247,0.4)]">AI</span>
+        <h1 class="text-base font-bold tracking-wider">Manager AI <span class="text-[10px] text-emerald-500 uppercase tracking-widest font-normal ml-3 border-l border-white/10 pl-3">Design Grid 2x2 (Grid în Patru)</span></h1>
+    </div>
+</header>
+
+<!-- MAIN WORKSPACE -->
+<main class="flex-1 flex gap-4 p-4 overflow-hidden h-[calc(100vh-56px)]">
+    
+    <!-- LEFT SIDEBAR: Clienți (Live) -->
+    <section class="w-[280px] bg-[#14161a] rounded-2xl border border-white/5 flex flex-col overflow-hidden shrink-0 shadow-2xl h-full">
+        <header class="px-5 py-3 border-b border-white/5 flex justify-between items-center bg-black/20 shrink-0">
+            <h2 class="font-bold text-sm text-gray-200">📇 Clienți (Live)</h2>
+            <span class="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded font-mono">253</span>
+        </header>
+        <div class="flex-1 overflow-y-auto p-3 space-y-1">
+            <div class="p-3 bg-white/10 rounded-xl border border-white/10 flex items-center gap-3 cursor-pointer shadow-inner">
+                <div class="w-10 h-10 rounded-full bg-emerald-900/50 border border-emerald-500 flex justify-center items-center font-bold text-emerald-400 text-xs">U19</div>
+                <div>
+                    <div class="font-bold text-[13px] text-white">Superparty-19</div>
+                    <div class="text-[10px] text-gray-400 font-mono mt-0.5">+40736560405</div>
+                </div>
+            </div>
+            <div class="p-3 hover:bg-white/5 rounded-xl flex items-center gap-3 cursor-pointer border border-transparent transition-colors">
+                <div class="w-10 h-10 rounded-full bg-gray-800 flex justify-center items-center text-xs text-gray-500 font-bold">K8</div>
+                <div>
+                    <div class="font-bold text-[13px] text-gray-400">Kassya-8</div>
+                    <div class="text-[10px] text-gray-600 font-mono mt-0.5">+40747924794</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- RIGHT AREA: 2x2 GRID -->
+    <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-4 h-full min-w-0">
+        
+        <!-- TOP LEFT: Chat Client -->
+        <section class="bg-[#14161a] rounded-2xl border border-white/5 flex flex-col overflow-hidden shadow-xl">
+            <header class="p-3 border-b border-white/5 flex justify-between items-center bg-black/20 shrink-0">
+                <h2 class="font-bold text-sm text-gray-200 flex items-center gap-2">💬 Chat Client</h2>
+                <div class="bg-red-500/10 text-red-500 border border-red-500/20 px-3 py-1 rounded text-[9px] font-black tracking-widest uppercase">
+                    <span class="animate-pulse mr-1">●</span> AI OFF (SHADOW)
+                </div>
+            </header>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                <div class="flex flex-col items-start w-full">
+                    <div class="text-[8px] font-bold text-purple-400 uppercase tracking-widest mb-1 ml-1">👤 TRIMIS DE OM</div>
+                    <div class="bg-purple-900/40 text-white p-3 rounded-2xl rounded-tl-none max-w-[85%] text-[13px] border border-purple-500/30">
+                        Bună ziua. Astăzi anulează doamna contabil factura până mâine aveți bănuții înapoi 🤗
+                    </div>
+                </div>
+                <div class="flex flex-col items-end w-full mt-4">
+                    <div class="bg-gray-800/80 text-white p-3 rounded-2xl rounded-tr-none max-w-[85%] text-[13px] border border-white/10">
+                        În regulă! Mulțumesc mult!
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TOP RIGHT: Acțiuni CRM (Real) -->
+        <section class="bg-gradient-to-br from-[#14161a] to-emerald-900/10 rounded-2xl border border-emerald-500/20 flex flex-col overflow-hidden shadow-[0_0_30px_rgba(16,185,129,0.05)]">
+            <header class="p-3 border-b border-emerald-500/20 flex justify-between items-center bg-emerald-900/20 shrink-0">
+                <h2 class="font-bold text-sm text-emerald-400 flex items-center gap-2">✅ Acțiuni CRM (Real)</h2>
+                <div class="bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-1.5 rounded text-[10px] font-black tracking-widest uppercase shadow-lg shadow-emerald-500/20">
+                    CREARE ON
+                </div>
+            </header>
+            <div class="flex-1 overflow-y-auto p-4">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-sm shadow-inner">🎉</div>
+                    <div>
+                        <div class="text-[13px] font-black text-white tracking-wide">Pachet: Animație</div>
+                        <div class="text-[9px] text-emerald-400 font-bold uppercase tracking-widest mt-0.5">Scris cu succes în Databse</div>
+                    </div>
+                </div>
+                <div class="bg-black/60 rounded-xl p-4 text-emerald-100 border border-emerald-900/50 w-full">
+                    <!-- Vertical Key-Value Stack for Readability -->
+                    <div class="flex flex-col border-b border-emerald-900/50 pb-2 mb-2">
+                        <span class="text-emerald-500/70 text-[9px] font-bold uppercase tracking-widest mb-1">Locația Extrasă</span>
+                        <span class="text-white font-semibold text-[13px] leading-snug">Grădinița Teghes, Comuna Domnești, Strada Transilvaniei 38</span>
+                    </div>
+                    <div class="flex flex-col border-b border-emerald-900/50 pb-2 mb-2">
+                        <span class="text-emerald-500/70 text-[9px] font-bold uppercase tracking-widest mb-1">Personaje</span>
+                        <span class="text-white font-semibold text-[13px] leading-snug">Peppa, Mickey/Minnie mascot</span>
+                    </div>
+                    <div class="flex justify-between border-b border-emerald-900/50 pb-2 mb-2">
+                        <div class="flex flex-col">
+                            <span class="text-emerald-500/70 text-[9px] font-bold uppercase tracking-widest mb-1">Sărbătorit</span>
+                            <span class="text-white font-semibold text-[13px]">Raducan Maya Karina</span>
+                        </div>
+                        <div class="flex flex-col items-end">
+                            <span class="text-emerald-500/70 text-[9px] font-bold uppercase tracking-widest mb-1">Vârstă</span>
+                            <span class="text-white font-semibold text-[13px]">3 ani</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between">
+                        <div class="flex flex-col">
+                            <span class="text-emerald-500/70 text-[9px] font-bold uppercase tracking-widest mb-1">Data Eveniment</span>
+                            <span class="text-white font-semibold text-[13px]">23.06.2026 • 10:00</span>
+                        </div>
+                        <div class="flex flex-col items-end">
+                            <span class="text-emerald-500/70 text-[9px] font-bold uppercase tracking-widest mb-1">Durata</span>
+                            <span class="text-white font-semibold text-[13px]">2 ore</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- BOTTOM LEFT: Simulator AI -->
+        <section class="bg-[#14161a] rounded-2xl border border-white/5 flex flex-col overflow-hidden shadow-xl">
+            <header class="p-3 border-b border-white/5 flex justify-between items-center bg-black/20 shrink-0">
+                <h2 class="font-bold text-sm text-gray-200 flex items-center gap-2">🤖 Simulator AI (Shadow)</h2>
+                <div class="bg-gray-800 text-gray-300 px-3 py-1 rounded text-[9px] font-bold tracking-widest uppercase">82 MSJ</div>
+            </header>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4 relative">
+                <div class="flex flex-col items-end w-full">
+                    <div class="flex justify-between items-end w-full mb-1 px-1">
+                        <span class="text-[8px] font-bold text-gray-500 uppercase tracking-widest">🤖 Răspuns Generat</span>
+                        <span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-bold border border-emerald-500/20">99% ÎNCREDERE</span>
+                    </div>
+                    <div class="bg-[#1e1c27] text-gray-200 p-4 rounded-2xl rounded-tr-none w-full text-[13px] border border-purple-500/20 shadow-lg leading-relaxed">
+                        Am notat toate detaliile pentru petrecerea cu Peppa și Mickey/Minnie, care va avea loc pe 23.06.2026, la Grădinița Tegheș... Costul total este de 450 lei. Am înțeles că veți efectua plata înainte de data evenimentului. Mai aveți nevoie de ceva?
+                    </div>
+                    <div class="flex justify-between w-full mt-2 px-1">
+                        <span class="bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 rounded text-[8px] font-bold uppercase">✕ Fără Auto-Reply</span>
+                        <span class="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded text-[8px] font-bold uppercase">Etapa: Background-Sync</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- BOTTOM RIGHT: JSON Simulat -->
+        <section class="bg-gradient-to-tl from-[#14161a] to-pink-900/10 rounded-2xl border border-pink-500/20 flex flex-col overflow-hidden shadow-xl">
+            <header class="p-3 border-b border-pink-500/20 flex justify-between items-center bg-pink-900/20 shrink-0">
+                <h2 class="font-bold text-sm text-pink-400 flex items-center gap-2">👁️ JSON Simulat</h2>
+                <div class="text-[9px] text-pink-400/60 bg-pink-500/10 px-2 py-0.5 rounded border border-pink-500/20 font-mono">Actualizat: 03:09:32</div>
+            </header>
+            <div class="flex-1 overflow-y-auto p-4 bg-black/40">
+                <div class="flex justify-between items-center bg-black/60 rounded-lg p-2.5 border border-white/5 mb-3">
+                    <span class="text-[9px] uppercase text-gray-500 font-bold">Tip Eveniment Extras</span>
+                    <span class="text-[11px] font-bold text-pink-400">Animație</span>
+                </div>
+                <div class="bg-black/80 rounded-xl border border-white/5 relative p-4 custom-scroll">
+                    <div class="absolute top-0 right-0 bg-white/10 px-2 py-0.5 text-[8px] rounded-bl uppercase tracking-widest text-gray-400 font-mono">
+                        LIVE JSON
+                    </div>
+                    <pre class="text-[11px] text-emerald-300 font-mono whitespace-pre-wrap leading-loose mt-2">
+{
+  "Loca_ia": "Grădinița Teghes, Comuna Domnești, Strada Transilvaniei 38",
+  "Num_r_Copii": "15-17",
+  "Durata__ore_": "2",
+  "Ora_de__nceput": "10:00",
+  "Nume_S_rb_torit": "Raducan Maya Karina Ilinca",
+  "V_rst__S_rb_torit": "3 ani",
+  "Personajul_Dorit": "Peppa, Mickey/Minnie mascot",
+  "Data_Evenimentului": "23.06.2026",
+  "Situa_ie_Încasare": "Plata se va efectua cu 2 saptamani inainte de eveniment"
+}</pre>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</main>
+
+</body>
+</html>
