@@ -19,9 +19,11 @@ export async function GET() {
   try {
     const notebooks: Record<string, unknown>[] = [];
     
-    // 1. Fetch recent conversations - use updated_at as last message proxy (lightweight)
+    // 1. Fetch recent conversations with their latest real message
     const { data: recentConvs, error: convErr } = await supabase.from('conversations')
-      .select('client_id, updated_at')
+      .select('client_id, updated_at, messages(created_at)')
+      .limit(1, { foreignTable: 'messages' })
+      .order('created_at', { foreignTable: 'messages', ascending: false })
       .order('updated_at', { ascending: false })
       .limit(800);
       
@@ -34,7 +36,8 @@ export async function GET() {
            const cid = conv.client_id;
            if (cid && !uniqueClientIds.includes(cid)) {
                uniqueClientIds.push(cid);
-               if (conv.updated_at) lastMessageMap.set(cid, conv.updated_at);
+               const realDate = conv.messages && conv.messages.length > 0 ? conv.messages[0].created_at : conv.updated_at;
+               if (realDate) lastMessageMap.set(cid, realDate);
            }
        }
     }
