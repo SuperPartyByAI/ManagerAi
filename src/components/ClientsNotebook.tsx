@@ -49,12 +49,18 @@ export default function ClientsNotebook() {
   }, []);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
+  console.log("[ClientsNotebook] Toți clienții primiți:", clients.length);
 
-  const filteredClients = clients.filter(c =>
-    c.phone_number.includes(searchTerm) ||
-    c.wa_number.includes(searchTerm) ||
-    JSON.stringify(c.clean_notebook).toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClients = clients.filter(c => {
+    const phone = c.phone_number || "";
+    const wa = c.wa_number || "";
+    const notebookStr = JSON.stringify(c.clean_notebook || {}).toLowerCase();
+    const search = searchTerm.toLowerCase();
+
+    return phone.includes(search) ||
+           wa.includes(search) ||
+           notebookStr.includes(search);
+  });
 
   const startEdit = (client: ClientNotebook) => {
     setEditing(client.id);
