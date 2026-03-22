@@ -62,15 +62,18 @@ export default function CopilotPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
   const [leftPanelMode, setLeftPanelMode] = useState<"conversations" | "testai">("conversations");
   const [middlePanelMode, setMiddlePanelMode] = useState<"notebook" | "liveagent">("notebook");
-  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "aiconfig">(() => {
-    if (typeof window !== "undefined") {
-      const savedView = localStorage.getItem("superparty_admin_view");
-      if (savedView && ["whatsapp","roles","collaborators","employees","events","costumes","vertex","aiconfig"].includes(savedView)) return savedView as any;
-    }
-    return "whatsapp";
-  });
+  // Inițializăm MEREU cu "whatsapp" pentru a evita hydration mismatch (SSR vs client).
+  // Valoarea din localStorage e restaurată în useEffect (client-only).
+  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "aiconfig">("whatsapp");
 
-  // Save tab state whenever the user navigates
+  // Restaurare tab din localStorage după mount (client-only) + salvare la fiecare navigare
+  useEffect(() => {
+    const saved = localStorage.getItem("superparty_admin_view");
+    if (saved && ["whatsapp","roles","collaborators","employees","events","costumes","vertex","aiconfig"].includes(saved)) {
+      setCurrentView(saved as "whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "aiconfig");
+    }
+  }, []);
+
   useEffect(() => {
     localStorage.setItem("superparty_admin_view", currentView);
   }, [currentView]);
