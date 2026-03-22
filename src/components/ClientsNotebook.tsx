@@ -367,58 +367,6 @@ export default function ClientsNotebook() {
           {filteredClients.length} clienți • Memorie se actualizează automat la fiecare 30 mesaje noi
         </div>
       )}
-
-      {/* AI Memory Modal Overlay */}
-      {viewAiMemory && (() => {
-         const activeClient = clients.find(c => c.id === viewAiMemory);
-         const rezumat = normalizeNotebook(activeClient?.clean_notebook)?.rezumat_ai || "Nicio memorie AI organică nu a fost generată vizibil încă în conversație.";
-         return (
-         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "20px" }}>
-             <div style={{ background: "#1e1b4b", borderRadius: "16px", padding: "24px", maxWidth: "800px", width: "100%", border: "1px solid rgba(139,92,246,0.5)", boxShadow: "0 10px 40px rgba(0,0,0,0.8)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid rgba(139,92,246,0.2)", paddingBottom: "12px" }}>
-                    <h3 style={{ margin: 0, color: "#e0e7ff", fontSize: "18px", display: "flex", alignItems: "center", gap: "8px" }}>
-                      🧠 Creier AI - Sumar {activeClient?.phone_number} (Adevăr Absolut)
-                    </h3>
-                    <button onClick={() => setViewAiMemory(null)} style={{ background: "transparent", border: "none", color: "#9ca3af", fontSize: "20px", cursor: "pointer" }}>✕</button>
-                </div>
-                <div style={{ color: "#c7d2fe", fontSize: "16px", lineHeight: "1.6", overflowY: "auto", flex: 1, whiteSpace: "pre-wrap", paddingRight: "8px" }}>
-                    {rezumat}
-                    
-                    {/* Render Extras în Modal */}
-                    {(() => {
-                        const modalNbFields = Object.entries(normalizeNotebook(activeClient?.clean_notebook)).filter(([k, v]) => v && k !== 'rezumat_ai');
-                        if (modalNbFields.length === 0) return null;
-                        
-                        return (
-                          <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid rgba(139,92,246,0.2)" }}>
-                            <div style={{ fontSize: "14px", color: "#a5b4fc", fontWeight: "bold", marginBottom: "12px" }}>
-                              📋 Date Structurate Extrase de AI:
-                            </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                              {modalNbFields.map(([k, v]) => (
-                                <div key={k} style={{
-                                  background: "rgba(0,0,0,0.3)", borderRadius: "8px",
-                                  padding: k === 'observatii' ? "14px" : "10px 14px", 
-                                  border: "1px solid rgba(139,92,246,0.3)",
-                                  gridColumn: k === 'observatii' ? "1 / -1" : "auto"
-                                }}>
-                                  <div style={{ fontSize: "12px", color: "#8b5cf6", marginBottom: "4px" }}>
-                                    {FIELD_LABELS[k] || k}
-                                  </div>
-                                  <div style={{ fontSize: "14px", color: "#e0e7ff", fontWeight: 500, whiteSpace: "pre-wrap" }}>
-                                    {String(v)}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                    })()}
-                </div>
-             </div>
-         </div>
-         );
-      })()}
     </div>
   );
 }
