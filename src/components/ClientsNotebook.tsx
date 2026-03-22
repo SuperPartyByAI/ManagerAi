@@ -120,16 +120,6 @@ export default function ClientsNotebook() {
     }
   };
 
-  const deleteClient = async (client: ClientNotebook) => {
-    if (!confirm(`Ștergi memoria clientului ${client.phone_number}?`)) return;
-    await fetch("/api/admin/clients-notebook", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone_number: client.phone_number, wa_number: client.wa_number }),
-    });
-    await fetchClients();
-  };
-
   return (
     <div style={{ padding: "20px", maxWidth: "1800px", width: "100%", margin: "0 auto" }}>
       {/* Header */}
@@ -275,14 +265,6 @@ export default function ClientsNotebook() {
                             >✕ Anulează</button>
                           </>
                         )}
-                        <button
-                          onClick={e => { e.stopPropagation(); deleteClient(client); }}
-                          style={{
-                            background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)",
-                            color: "#fca5a5", borderRadius: "8px", padding: "6px 14px",
-                            cursor: "pointer", fontSize: "13px", marginLeft: "auto"
-                          }}
-                        >🗑️ Șterge memorie</button>
                       </div>
 
                       {/* Fields grid */}
