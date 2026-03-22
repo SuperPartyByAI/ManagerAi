@@ -16,32 +16,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   );
 
   try {
-    // Gasim telefonul clientului pentru lookup cross-QR
-    const { data: clientRow } = await supabase
-      .from('clients')
-      .select('real_phone_e164')
-      .eq('id', id)
-      .maybeSingle();
+    // In API-ul vechi, sistemul incerca sa faca 'lookup cross-QR' luand acelasi telefon si incarcand absolut toate
+    // mesajele, amestecand brandurile vizual. Acum pastram STRICT client_id dat ca argument, deoarece este unic pe QR.
+    const allClientIds: string[] = [id];
 
-    const clientPhone = clientRow?.real_phone_e164;
-
-    // Gasim toti clientii cu acelasi telefon (toate QR-urile)
-    let allClientIds: string[] = [id];
-    if (clientPhone) {
-      const { data: samePhoneClients } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('real_phone_e164', clientPhone);
-      if (samePhoneClients && samePhoneClients.length > 0) {
-        allClientIds = samePhoneClients.map((c: { id: string }) => c.id);
-      }
-    }
-
-    // Luam toate conversatiile de la toti clientii
+    // Luam toate conversatiile de la acest client (izolare perfecta)
     const { data: convs, error: convErr } = await supabase
       .from('conversations')
       .select('id')
-      .in('client_id', allClientIds)
+      .eq('client_id', id)
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -100,7 +83,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     return NextResponse.json({
       latest_messages: latestMessages,
-      debug: { id, convCount: convs?.length, clientIds: allClientIds.length, phone: clientPhone }
+      debug: { id, convCount: convs?.length, clientIds: allClientIds.length }
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

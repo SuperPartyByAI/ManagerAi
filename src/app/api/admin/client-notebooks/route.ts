@@ -87,7 +87,7 @@ export async function GET() {
 
         if (clientsRaw) {
             const clientMap = new Map(clientsRaw.map(c => [c.id, c]));
-            const seenPhones = new Set<string>();
+            const seenUniqueKeys = new Set<string>();
             const seenAliases = new Set<string>();
             
             for (const cid of uniqueClientIds) {
@@ -98,23 +98,26 @@ export async function GET() {
                     const phoneNumber = c.real_phone_e164;
                     const alias = c.public_alias || c.full_name || null;
                     
-                    if (!seenPhones.has(phoneNumber) && (!alias || !seenAliases.has(alias))) {
-                        seenPhones.add(phoneNumber);
+                    // Resolve brand_key
+                    let resolvedBrand = c.brand_key;
+                    if (resolvedBrand && brandFixMap.has(resolvedBrand)) {
+                      resolvedBrand = brandFixMap.get(resolvedBrand)!;
+                    }
+                    
+                    // Cheia unică trebuie să fie TELEFON + BRAND (pentru ca clientul să apară de mai multe ori dacă a scris pe mai multe QR-uri)
+                    const uniqueKey = `${phoneNumber}|${resolvedBrand || 'UNKNOWN'}`;
+                    
+                    if (!seenUniqueKeys.has(uniqueKey)) { // Changed condition
+                        seenUniqueKeys.add(uniqueKey); // Changed set
                         if (alias) seenAliases.add(alias);
-                        
-                        // Resolve brand_key: fix SESSION_xxx and wa_xxx to proper brand name
-                        let resolvedBrand = c.brand_key;
-                        if (resolvedBrand && brandFixMap.has(resolvedBrand)) {
-                          resolvedBrand = brandFixMap.get(resolvedBrand)!;
-                        }
                         
                         // Cauta clean_notebook stric pentru brand_key specific
                         const notebookKey = `${phoneNumber}|${resolvedBrand || ''}`;
-                        const cleanNotebookData = cleanNotebookMap.get(notebookKey) || {}; // Daca nu are istoric pe QR-ul asta, pleaca de la zero. NU folosi alte QR-uri.
+                        const cleanNotebookData = cleanNotebookMap.get(notebookKey) || {}; // Daca nu are istoric pe QR-ul asta, pleaca de zero
                              
                         // Structure to match what the frontend expects today
                         notebooks.push({
-                           client_id: cid,
+                           client_id: c.id, // Changed from cid to c.id as per instruction snippet
                            phone_number: phoneNumber,
                            alias: alias,
                            template_key: 'Live Chat',
