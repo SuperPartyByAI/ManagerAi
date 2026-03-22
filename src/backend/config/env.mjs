@@ -10,6 +10,26 @@ export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 export const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
 if (GEMINI_MODEL !== 'gemini-2.5-flash-lite') {
     console.error("CRITICAL ERROR: DOAR gemini-2.5-flash-lite ESTE RECOMANDAT IN APLICATIE! Cost optimization limit.");
+    // Global Network Interceptor to strictly enforce gemini-2.5-flash-lite usage
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async function(url, options) {
+        const urlString = typeof url === 'string' ? url : (url && url.url ? url.url : String(url));
+        if (urlString.includes('generativelanguage.googleapis.com') && 
+           (urlString.includes('models/gemini-') || urlString.includes('models/gemini-2.0'))) {
+            if (!urlString.includes('gemini-2.5-flash-lite')) {
+                throw new Error(`🛑 SECURITY BAN: Încercare de utilizare a unui model neautorizat! Model: ${urlString}. Permis doar: gemini-2.5-flash-lite`);
+            }
+        }
+        if (options && options.body && typeof options.body === 'string') {
+            const bodyStr = options.body;
+            if (bodyStr.includes('"model":"models/gemini-') || bodyStr.includes('"model": "models/gemini-')) {
+                 if (!bodyStr.includes('gemini-2.5-flash-lite')) {
+                    throw new Error(`🛑 SECURITY BAN: Încercare de utilizare a modelului interzis în corpul request-ului Google SDK!`);
+                 }
+            }
+        }
+        return originalFetch.apply(this, arguments);
+    };
     process.exit(1);
 }
 export const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
