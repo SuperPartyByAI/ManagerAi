@@ -248,14 +248,17 @@ export default function ClientsNotebook() {
                                 cursor: "pointer", fontSize: "13px"
                               }}
                             >✏️ Editează</button>
-                            <button
-                              onClick={e => { e.stopPropagation(); setViewAiMemory(client.id); }}
+                            <a
+                              href={`/ai-brain/${encodeURIComponent(client.phone_number || "")}`}
+                              target="_blank"
+                              onClick={e => e.stopPropagation()}
                               style={{
                                 background: "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.4)",
                                 color: "#d8b4fe", borderRadius: "8px", padding: "6px 14px",
-                                cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px"
+                                cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px",
+                                textDecoration: "none"
                               }}
-                            >🧠 Adevăr AI</button>
+                            >🧠 Adevăr AI</a>
                           </div>
                         ) : (
                           <>
