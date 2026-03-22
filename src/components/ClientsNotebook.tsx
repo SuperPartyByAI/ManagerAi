@@ -38,6 +38,7 @@ export default function ClientsNotebook() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [viewAiMemory, setViewAiMemory] = useState<string | null>(null);
+  const [viewingBrain, setViewingBrain] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [editData, setEditData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -79,6 +80,7 @@ export default function ClientsNotebook() {
   // Când schimbăm clientul deschis, încărcăm chat-ul automat
   useEffect(() => {
      setChatHistory(null);
+     setViewingBrain(null); // Reset brain view on new open
      if (expanded) {
          fetch(`/api/admin/crm/clients/${expanded}?_t=${Date.now()}`)
              .then(res => res.json())
@@ -248,17 +250,15 @@ export default function ClientsNotebook() {
                                 cursor: "pointer", fontSize: "13px"
                               }}
                             >✏️ Editează</button>
-                            <a
-                              href={`/ai-brain/${encodeURIComponent(client.phone_number || "")}`}
-                              target="_blank"
-                              onClick={e => e.stopPropagation()}
+                            <button
+                              onClick={e => { e.stopPropagation(); setViewingBrain(prev => prev === client.id ? null : client.id); }}
                               style={{
-                                background: "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.4)",
+                                background: viewingBrain === client.id ? "rgba(168,85,247,0.4)" : "rgba(168,85,247,0.2)",
+                                border: "1px solid rgba(168,85,247,0.5)",
                                 color: "#d8b4fe", borderRadius: "8px", padding: "6px 14px",
-                                cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px",
-                                textDecoration: "none"
+                                cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px"
                               }}
-                            >🧠 Adevăr AI</a>
+                            >{viewingBrain === client.id ? "👀 Vezi Istoric Chat" : "🧠 Adevăr AI"}</button>
                           </div>
                         ) : (
                           <>
@@ -321,8 +321,47 @@ export default function ClientsNotebook() {
                         </div>
                       ) : null}
 
-                      {/* Chat History block */}
-                      {chatHistory !== null && (
+                      {/* Toggled Content: AI Brain vs Chat History */}
+                      {viewingBrain === client.id ? (
+                        <div style={{ marginTop: "20px", background: "rgba(139,92,246,0.05)", borderRadius: "12px", border: "1px solid rgba(139,92,246,0.3)", padding: "20px" }}>
+                          {(() => {
+                              const cleanNb = normalizeNotebook(client.clean_notebook);
+                              const rez = cleanNb.rezumat_ai || "Nicio memorie AI organică nu a fost generată vizibil încă în conversație.";
+                              const xtract = Object.entries(cleanNb).filter(([k, v]) => v && k.indexOf('rezumat') === -1);
+                              return (
+                                <>
+                                  <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#a5b4fc", margin: "0 0 12px 0", textTransform: "uppercase" }}>🧠 Memoria Extinsă a AI-ului (Adevăr Absolut)</h4>
+                                  <div style={{ color: "#c7d2fe", fontSize: "15px", lineHeight: "1.6", whiteSpace: "pre-wrap", marginBottom: "20px" }}>
+                                    {rez}
+                                  </div>
+                                  
+                                  {xtract.length > 0 && (
+                                    <>
+                                      <h5 style={{ fontSize: "12px", color: "#8b5cf6", margin: "0 0 10px 0", textTransform: "uppercase" }}>📋 Date Extrase Structurat:</h5>
+                                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                        {xtract.map(([k, v]) => (
+                                          <div key={k} style={{
+                                            background: "rgba(0,0,0,0.3)", borderRadius: "8px",
+                                            padding: k === 'observatii' ? "14px" : "10px 14px", 
+                                            border: "1px solid rgba(139,92,246,0.3)",
+                                            gridColumn: k === 'observatii' ? "1 / -1" : "auto"
+                                          }}>
+                                            <div style={{ fontSize: "11px", color: "#8b5cf6", marginBottom: "4px" }}>
+                                              {FIELD_LABELS[k] || k}
+                                            </div>
+                                            <div style={{ fontSize: "14px", color: "#e0e7ff", fontWeight: 500, whiteSpace: "pre-wrap" }}>
+                                              {String(v)}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </>
+                                  )}
+                                </>
+                              );
+                          })()}
+                        </div>
+                      ) : chatHistory !== null ? (
                           <div style={{ marginTop: "20px", background: "rgba(0,0,0,0.4)", borderRadius: "12px", padding: "16px", border: "1px solid rgba(255,255,255,0.1)", maxHeight: "75vh", overflowY: "auto" }}>
                               <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#e2e8f0", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
                                 💬 Istoric Conversație
@@ -354,7 +393,7 @@ export default function ClientsNotebook() {
                                   })
                               )}
                           </div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 )}
