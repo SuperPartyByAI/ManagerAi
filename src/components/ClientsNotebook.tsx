@@ -43,7 +43,6 @@ export default function ClientsNotebook() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const [chatHistory, setChatHistory] = useState<any[] | null>(null);
-  const [loadingChat, setLoadingChat] = useState(false);
 
   const fetchClients = useCallback(async () => {
     setLoading(true);
@@ -72,29 +71,19 @@ export default function ClientsNotebook() {
     }
   }, []);
 
-  const toggleChatHistory = async (clientId: string) => {
-      // Dacă chat-ul e deja afișat și dăm din nou, îl ascundem
-      if (chatHistory && !loadingChat) {
-          setChatHistory(null);
-          return;
-      }
-      setLoadingChat(true);
-      try {
-          const res = await fetch(`/api/admin/crm/clients/${clientId}?_t=${Date.now()}`);
-          const data = await res.json();
-          setChatHistory(data.latest_messages || []);
-      } catch(e) {
-          setChatHistory([]);
-      }
-      setLoadingChat(false);
-  };
-
   useEffect(() => { fetchClients(); }, [fetchClients]);
   console.log("[ClientsNotebook] Toți clienții primiți:", clients.length);
 
-  // Când schimbăm clientul deschis, ascundem chat-ul anterior
+  // Când schimbăm clientul deschis, încărcăm chat-ul automat
   useEffect(() => {
      setChatHistory(null);
+     if (expanded) {
+         setLoadingChat(true);
+         fetch(`/api/admin/crm/clients/${expanded}?_t=${Date.now()}`)
+             .then(res => res.json())
+             .then(data => { setChatHistory(data.latest_messages || []); setLoadingChat(false); })
+             .catch(() => { setChatHistory([]); setLoadingChat(false); });
+     }
   }, [expanded]);
 
   const filteredClients = clients.filter(c => {
@@ -295,14 +284,6 @@ export default function ClientsNotebook() {
                             cursor: "pointer", fontSize: "13px", marginLeft: "auto"
                           }}
                         >🗑️ Șterge memorie</button>
-                        <button
-                          onClick={e => { e.stopPropagation(); toggleChatHistory(client.id); }}
-                          style={{
-                            background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)",
-                            color: "#6ee7b7", borderRadius: "8px", padding: "6px 14px",
-                            cursor: "pointer", fontSize: "13px"
-                          }}
-                        >💬 {loadingChat && chatHistory === null ? "Se descarcă..." : chatHistory ? "Ascunde Chat" : "Vezi Istoric Mesaje"}</button>
                       </div>
 
                       {/* Fields grid */}
