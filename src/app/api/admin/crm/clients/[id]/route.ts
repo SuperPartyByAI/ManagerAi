@@ -30,7 +30,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     if (convErr) throw convErr;
 
-    console.log('Next route fetching id:', id, 'Phone:', clientPhone, 'All client IDs:', allClientIds.length, 'Found convs:', convs?.length);
+    console.log('Next route fetching id:', id, 'All client IDs:', allClientIds.length, 'Found convs:', convs?.length);
     const convIds = convs?.map((c: { id: string }) => c.id) || [];
     let latestMessages: any[] = [];
     const decisionsMap = new Map();

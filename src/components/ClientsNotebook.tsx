@@ -42,12 +42,29 @@ export default function ClientsNotebook() {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const [chatHistory, setChatHistory] = useState<any[] | null>(null);
+  const [loadingChat, setLoadingChat] = useState(false);
+
   const fetchClients = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/clients-notebook");
+      const res = await fetch("/api/admin/client-notebooks?_t=" + Date.now()); // Sursa extinsă: toate QR-urile!
       const data = await res.json();
-      setClients(Array.isArray(data) ? data : []);
+      if (data.notebooks && Array.isArray(data.notebooks)) {
+        const mapped = data.notebooks.map((n: any) => ({
+           id: n.client_id,
+           phone_number: n.phone_number,
+           wa_number: n.brand_key || '',
+           brand_key: n.brand_key,
+           clean_notebook: n.extracted_data || {},
+           summary_updated_at: n.last_message_at || new Date().toISOString(),
+           created_at: n.last_message_at || new Date().toISOString(),
+           alias: n.alias
+        }));
+        setClients(mapped);
+      } else {
+        setClients([]);
+      }
     } catch {
       setClients([]);
     } finally {
@@ -55,8 +72,30 @@ export default function ClientsNotebook() {
     }
   }, []);
 
+  const toggleChatHistory = async (clientId: string) => {
+      // Dacă chat-ul e deja afișat și dăm din nou, îl ascundem
+      if (chatHistory && !loadingChat) {
+          setChatHistory(null);
+          return;
+      }
+      setLoadingChat(true);
+      try {
+          const res = await fetch(`/api/admin/crm/clients/${clientId}?_t=${Date.now()}`);
+          const data = await res.json();
+          setChatHistory(data.latest_messages || []);
+      } catch(e) {
+          setChatHistory([]);
+      }
+      setLoadingChat(false);
+  };
+
   useEffect(() => { fetchClients(); }, [fetchClients]);
   console.log("[ClientsNotebook] Toți clienții primiți:", clients.length);
+
+  // Când schimbăm clientul deschis, ascundem chat-ul anterior
+  useEffect(() => {
+     setChatHistory(null);
+  }, [expanded]);
 
   const filteredClients = clients.filter(c => {
     const phone = c.phone_number || "";
@@ -256,6 +295,14 @@ export default function ClientsNotebook() {
                             cursor: "pointer", fontSize: "13px", marginLeft: "auto"
                           }}
                         >🗑️ Șterge memorie</button>
+                        <button
+                          onClick={e => { e.stopPropagation(); toggleChatHistory(client.id); }}
+                          style={{
+                            background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)",
+                            color: "#6ee7b7", borderRadius: "8px", padding: "6px 14px",
+                            cursor: "pointer", fontSize: "13px"
+                          }}
+                        >💬 {loadingChat && chatHistory === null ? "Se descarcă..." : chatHistory ? "Ascunde Chat" : "Vezi Istoric Mesaje"}</button>
                       </div>
 
                       {/* Fields grid */}
@@ -314,6 +361,41 @@ export default function ClientsNotebook() {
                         <div style={{ color: "#6b7280", fontSize: "13px", textAlign: "center", padding: "20px 0" }}>
                           📭 Notebook gol — AI-ul va completa automat după 30+ mesaje.
                         </div>
+                      )}
+
+                      {/* Chat History block */}
+                      {chatHistory !== null && (
+                          <div style={{ marginTop: "20px", background: "rgba(0,0,0,0.4)", borderRadius: "12px", padding: "16px", border: "1px solid rgba(255,255,255,0.1)", maxHeight: "400px", overflowY: "auto" }}>
+                              <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#e2e8f0", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                💬 Istoric Conversație
+                              </h4>
+                              {chatHistory.length === 0 ? (
+                                  <div style={{ fontSize: "13px", color: "#9ca3af", textAlign: "center", padding: "10px" }}>Niciun mesaj găsit.</div>
+                              ) : (
+                                  chatHistory.map((m, i) => {
+                                      const isClient = m.sender_type === "client";
+                                      return (
+                                        <div key={i} style={{ marginBottom: "12px", display: "flex", justifyContent: isClient ? "flex-start" : "flex-end", width: "100%" }}>
+                                            <div style={{ 
+                                                background: isClient ? "rgba(255,255,255,0.1)" : "rgba(147,51,234,0.6)", 
+                                                padding: "10px 14px", 
+                                                borderRadius: "14px", 
+                                                borderTopLeftRadius: isClient ? "4px" : "14px",
+                                                borderTopRightRadius: isClient ? "14px" : "4px",
+                                                maxWidth: "85%", fontSize: "13px", color: "#fff", whiteSpace: "pre-wrap",
+                                                boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                                            }}>
+                                                <div style={{ fontSize: "10px", color: isClient ? "#9ca3af" : "#d8b4fe", marginBottom: "4px", display: "flex", justifyContent: "space-between" }}>
+                                                    <span>{isClient ? "👤 Client" : "🤖 / 👷 Noi"}</span>
+                                                    <span style={{ marginLeft: "10px" }}>{new Date(m.created_at).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}</span>
+                                                </div>
+                                                {m.content}
+                                            </div>
+                                        </div>
+                                      );
+                                  })
+                              )}
+                          </div>
                       )}
                     </div>
                   </div>
