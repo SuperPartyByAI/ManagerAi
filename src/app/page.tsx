@@ -6,6 +6,7 @@ import dynamicImport from "next/dynamic";
 import { useState, useEffect, useRef, useCallback } from "react";
 // RolesManager folosește localStorage + fetch async → doar client, fără SSR
 const RolesManager = dynamicImport(() => import("../components/RolesManager"), { ssr: false });
+const ClientsNotebook = dynamicImport(() => import("../components/ClientsNotebook"), { ssr: false });
 import VertexConfig from "../components/VertexConfig";
 import CollaboratorsManager from "../components/CollaboratorsManager";
 import EmployeesBoard from "../components/EmployeesBoard";
@@ -66,13 +67,13 @@ export default function CopilotPage() {
   const [middlePanelMode, setMiddlePanelMode] = useState<"notebook" | "liveagent">("notebook");
   // Inițializăm MEREU cu "whatsapp" pentru a evita hydration mismatch (SSR vs client).
   // Valoarea din localStorage e restaurată în useEffect (client-only).
-  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "aiconfig">("whatsapp");
+  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "aiconfig" | "notebook">("whatsapp");
 
   // Restaurare tab din localStorage după mount (client-only) + salvare la fiecare navigare
   useEffect(() => {
     const saved = localStorage.getItem("superparty_admin_view");
-    if (saved && ["whatsapp","roles","collaborators","employees","events","costumes","vertex","aiconfig"].includes(saved)) {
-      setCurrentView(saved as "whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "aiconfig");
+    if (saved && ["whatsapp","roles","collaborators","employees","events","costumes","vertex","aiconfig","notebook"].includes(saved)) {
+      setCurrentView(saved as any);
     }
   }, []);
 
@@ -566,6 +567,7 @@ export default function CopilotPage() {
         <nav className="flex items-center gap-1">
           {([
             { key: "whatsapp", icon: "💬", label: "WhatsApp", color: "green" },
+            { key: "notebook", icon: "📋", label: "Clienți", color: "blue" },
             { key: "roles", icon: "🤖", label: "Roluri AI", color: "purple" },
             { key: "collaborators", icon: "👥", label: "Colab.", color: "amber" },
             { key: "employees", icon: "👷", label: "Angajați", color: "indigo" },
@@ -573,10 +575,10 @@ export default function CopilotPage() {
             { key: "costumes", icon: "🎭", label: "Costume", color: "pink" },
             { key: "aiconfig", icon: "⚙️", label: "Config AI", color: "cyan" },
             { key: "vertex", icon: "🔧", label: "Vertex", color: "slate" },
-          ] as { key: "whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "aiconfig" | "vertex"; icon: string; label: string; color: string }[]).map(({ key, icon, label }) => (
+          ] as { key: string; icon: string; label: string; color: string }[]).map(({ key, icon, label }) => (
             <button
               key={key}
-              onClick={() => setCurrentView(key)}
+              onClick={() => setCurrentView(key as any)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 currentView === key
                   ? "bg-white/10 text-white border border-white/20"
@@ -1291,6 +1293,9 @@ export default function CopilotPage() {
             <AiConfigManager />
           </div>
         )}
+
+        {/* Notebook Module */}
+        {currentView === "notebook" && <ClientsNotebook />}
 
         {/* Vertex AI Config Module */}
         {currentView === "vertex" && <VertexConfig />}
