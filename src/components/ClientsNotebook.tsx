@@ -341,7 +341,7 @@ export default function ClientsNotebook() {
 
                       {/* Chat History block */}
                       {chatHistory !== null && (
-                          <div style={{ marginTop: "20px", background: "rgba(0,0,0,0.4)", borderRadius: "12px", padding: "16px", border: "1px solid rgba(255,255,255,0.1)", maxHeight: "400px", overflowY: "auto" }}>
+                          <div style={{ marginTop: "20px", background: "rgba(0,0,0,0.4)", borderRadius: "12px", padding: "16px", border: "1px solid rgba(255,255,255,0.1)", maxHeight: "75vh", overflowY: "auto" }}>
                               <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#e2e8f0", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
                                 💬 Istoric Conversație
                               </h4>
