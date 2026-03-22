@@ -316,24 +316,6 @@ export default function ClientsNotebook() {
                             />
                           </div>
                         </div>
-                      ) : nbFields.length > 0 ? (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                          {nbFields.map(([k, v]) => (
-                            <div key={k} style={{
-                              background: "rgba(255,255,255,0.03)", borderRadius: "8px",
-                              padding: k === 'rezumat_ai' || k === 'observatii' ? "14px" : "10px 14px", 
-                              border: "1px solid rgba(255,255,255,0.06)",
-                              gridColumn: k === 'rezumat_ai' || k === 'observatii' ? "1 / -1" : "auto"
-                            }}>
-                              <div style={{ fontSize: "11px", color: "#6b7280", marginBottom: "4px" }}>
-                                {FIELD_LABELS[k] || k}
-                              </div>
-                              <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 500, whiteSpace: "pre-wrap" }}>
-                                {String(v)}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
                       ) : null}
 
                       {/* Chat History block */}
@@ -401,6 +383,37 @@ export default function ClientsNotebook() {
                 </div>
                 <div style={{ color: "#c7d2fe", fontSize: "16px", lineHeight: "1.6", overflowY: "auto", flex: 1, whiteSpace: "pre-wrap", paddingRight: "8px" }}>
                     {rezumat}
+                    
+                    {/* Render Extras în Modal */}
+                    {(() => {
+                        const modalNbFields = Object.entries(normalizeNotebook(activeClient?.clean_notebook)).filter(([k, v]) => v && k !== 'rezumat_ai');
+                        if (modalNbFields.length === 0) return null;
+                        
+                        return (
+                          <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid rgba(139,92,246,0.2)" }}>
+                            <div style={{ fontSize: "14px", color: "#a5b4fc", fontWeight: "bold", marginBottom: "12px" }}>
+                              📋 Date Structurate Extrase de AI:
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                              {modalNbFields.map(([k, v]) => (
+                                <div key={k} style={{
+                                  background: "rgba(0,0,0,0.3)", borderRadius: "8px",
+                                  padding: k === 'observatii' ? "14px" : "10px 14px", 
+                                  border: "1px solid rgba(139,92,246,0.3)",
+                                  gridColumn: k === 'observatii' ? "1 / -1" : "auto"
+                                }}>
+                                  <div style={{ fontSize: "12px", color: "#8b5cf6", marginBottom: "4px" }}>
+                                    {FIELD_LABELS[k] || k}
+                                  </div>
+                                  <div style={{ fontSize: "14px", color: "#e0e7ff", fontWeight: 500, whiteSpace: "pre-wrap" }}>
+                                    {String(v)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                    })()}
                 </div>
              </div>
          </div>
