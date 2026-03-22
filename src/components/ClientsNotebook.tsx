@@ -37,10 +37,6 @@ export default function ClientsNotebook() {
   const [clients, setClients] = useState<ClientNotebook[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [editData, setEditData] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   const [chatHistory, setChatHistory] = useState<any[] | null>(null);
@@ -97,29 +93,6 @@ export default function ClientsNotebook() {
            notebookStr.includes(search);
   });
 
-  const startEdit = (client: ClientNotebook) => {
-    setEditing(client.id);
-    setEditData({ ...normalizeNotebook(client.clean_notebook) });
-  };
-
-  const saveEdit = async (client: ClientNotebook) => {
-    setSaving(true);
-    try {
-      await fetch("/api/admin/clients-notebook", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone_number: client.phone_number,
-          wa_number: client.wa_number,
-          clean_notebook: editData,
-        }),
-      });
-      setEditing(null);
-      await fetchClients();
-    } finally {
-      setSaving(false);
-    }
-  };
 
 
   return (
@@ -177,7 +150,6 @@ export default function ClientsNotebook() {
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {filteredClients.map(client => {
             const isExpanded = expanded === client.id;
-            const isEditing = editing === client.id;
             const nbFields = Object.entries(normalizeNotebook(client.clean_notebook)).filter(([, v]) => v);
 
             return (
@@ -191,7 +163,7 @@ export default function ClientsNotebook() {
               >
                 {/* Card Header */}
                 <div
-                  onClick={() => { setExpanded(isExpanded ? null : client.id); setEditing(null); }}
+                  onClick={() => { setExpanded(isExpanded ? null : client.id); }}
                   style={{
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                     padding: "14px 18px", cursor: "pointer",
@@ -235,126 +207,35 @@ export default function ClientsNotebook() {
                 {isExpanded && (
                   <div style={{ padding: "0 18px 18px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                     <div style={{ paddingTop: "14px" }}>
-                      {/* Top Bar: Action Buttons & AI Brain Side-by-Side */}
-                      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-start", alignItems: "flex-start", gap: "16px", marginBottom: "16px" }}>
-                        
-                        {/* Action buttons */}
-                        <div style={{ flexShrink: 0 }}>
-                          {!isEditing ? (
-                            <div style={{ display: "flex", gap: "10px" }}>
-                              <button
-                                onClick={e => { e.stopPropagation(); startEdit(client); }}
-                                style={{
-                                  background: "rgba(99,102,241,0.2)", border: "1px solid rgba(99,102,241,0.4)",
-                                  color: "#a5b4fc", borderRadius: "8px", padding: "6px 14px",
-                                  cursor: "pointer", fontSize: "13px", height: "fit-content"
-                                }}
-                              >✏️ Editează</button>
-                            </div>
-                          ) : (
-                            <div style={{ display: "flex", gap: "10px", flexDirection: "column" }}>
-                              <button
-                                onClick={e => { e.stopPropagation(); saveEdit(client); }}
-                                disabled={saving}
-                                style={{
-                                  background: "rgba(16,185,129,0.2)", border: "1px solid rgba(16,185,129,0.4)",
-                                  color: "#6ee7b7", borderRadius: "8px", padding: "6px 14px",
-                                  cursor: "pointer", fontSize: "13px"
-                                }}
-                              >{saving ? "⏳..." : "💾 Salvează"}</button>
-                              <button
-                                onClick={e => { e.stopPropagation(); setEditing(null); }}
-                                style={{
-                                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                                  color: "#9ca3af", borderRadius: "8px", padding: "6px 14px",
-                                  cursor: "pointer", fontSize: "13px"
-                                }}
-                              >✕ Anulează</button>
-                            </div>
-                          )}
-                        </div>
 
-                        {/* AI Brain Box (Lângă Buton) */}
-                        <div style={{ flex: "1 1 300px" }}>
-                          {isEditing ? (
-                              <div style={{ width: "100%" }}>
-                                  <label style={{ fontSize: "14px", color: "#a5b4fc", display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px", fontWeight: "bold" }}>
-                                    🧠 Editează Memorie AI
-                                  </label>
-                                  <textarea
-                                    value={editData.rezumat_ai || ""}
-                                    onChange={e => setEditData(prev => ({ ...prev, rezumat_ai: e.target.value }))}
-                                    rows={5}
-                                    style={{
-                                      width: "100%", padding: "10px",
-                                      background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.3)",
-                                      borderRadius: "8px", color: "#e0e7ff", fontSize: "13px", boxSizing: "border-box", resize: "vertical"
-                                    }}
-                                  />
-                              </div>
-                          ) : client.clean_notebook?.rezumat_ai ? (
-                              <div style={{ 
-                                  background: "rgba(99,102,241,0.1)", 
-                                  border: "1px solid rgba(99,102,241,0.4)", 
-                                  borderRadius: "8px", 
-                                  padding: "12px 14px", 
-                                  boxShadow: "0 2px 10px rgba(99,102,241,0.05)"
-                              }}>
-                                <div style={{ fontSize: "13px", color: "#a5b4fc", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
-                                  🧠 Creier AI - Memorie Centrală
-                                </div>
-                                <div style={{ fontSize: "14px", color: "#e0e7ff", lineHeight: "1.5", whiteSpace: "pre-wrap" }}>
-                                  {client.clean_notebook.rezumat_ai}
-                                </div>
-                              </div>
-                          ) : (
-                              <div style={{ 
-                                  background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.1)", 
-                                  borderRadius: "8px", padding: "12px 14px", color: "#6b7280", fontSize: "13px", fontStyle: "italic"
-                              }}>
-                                🧠 Creier AI: Nicio memorie generată încă. Așteaptă conversație activă.
-                              </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Fields grid */}
-                      {isEditing ? (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                          {Object.keys(FIELD_LABELS).map(key => (
-                            <div key={key}>
-                              <label style={{ fontSize: "12px", color: "#9ca3af", display: "block", marginBottom: "4px" }}>
-                                {FIELD_LABELS[key]}
-                              </label>
-                              <input
-                                value={editData[key] || ""}
-                                onChange={e => setEditData(prev => ({ ...prev, [key]: e.target.value }))}
-                                placeholder="—"
-                                style={{
-                                  width: "100%", padding: "8px 10px",
-                                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)",
-                                  borderRadius: "8px", color: "#fff", fontSize: "13px", boxSizing: "border-box"
-                                }}
-                              />
+                      {/* AI Brain Box (Singura Sursă de Adevăr) */}
+                      {client.clean_notebook?.rezumat_ai ? (
+                          <div style={{ 
+                              background: "rgba(99,102,241,0.1)", 
+                              border: "1px solid rgba(99,102,241,0.4)", 
+                              borderRadius: "8px", 
+                              padding: "16px", 
+                              marginBottom: "20px",
+                              boxShadow: "0 4px 12px rgba(99,102,241,0.08)"
+                          }}>
+                            <div style={{ fontSize: "14px", color: "#a5b4fc", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px", borderBottom: "1px solid rgba(99,102,241,0.2)", paddingBottom: "8px" }}>
+                              🧠 Creier AI - Memorie Centrală (Adevăr Absolut)
                             </div>
-                          ))}
-                          <div style={{ gridColumn: "1/-1" }}>
-                            <label style={{ fontSize: "12px", color: "#9ca3af", display: "block", marginBottom: "4px" }}>
-                              📝 Observații
-                            </label>
-                            <textarea
-                              value={editData.observatii || ""}
-                              onChange={e => setEditData(prev => ({ ...prev, observatii: e.target.value }))}
-                              rows={3}
-                              style={{
-                                width: "100%", padding: "8px 10px",
-                                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)",
-                                borderRadius: "8px", color: "#fff", fontSize: "13px", boxSizing: "border-box", resize: "vertical"
-                              }}
-                            />
+                            <div style={{ fontSize: "15px", color: "#e0e7ff", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
+                              {client.clean_notebook.rezumat_ai}
+                            </div>
                           </div>
-                        </div>
-                      ) : nbFields.length > 0 ? (
+                      ) : (
+                          <div style={{ 
+                              background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.1)", 
+                              borderRadius: "8px", padding: "16px", marginBottom: "20px", color: "#6b7280", fontSize: "14px", fontStyle: "italic"
+                          }}>
+                            🧠 Creier AI: Nicio memorie generată încă. Sistemul așteaptă conversația organică a clientului...
+                          </div>
+                      )}
+
+                      {/* Fields grid (Read-Only) */}
+                      {nbFields.length > 0 ? (
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                           {nbFields.map(([k, v]) => (
                             <div key={k} style={{
