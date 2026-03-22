@@ -50,18 +50,24 @@ export async function GET() {
             if (data) clientsRaw.push(...data);
         }
             
-        // 3. Fetch active draft events from NEW ai_client_events table (chunked)
-        const activeEvents: { client_id: string, servicii_cerute?: string, status?: string }[] = [];
-        for (let i = 0; i < uniqueClientIds.length; i += 200) {
-            const chunk = uniqueClientIds.slice(i, i + 200);
-            const { data } = await supabase.from('ai_client_events')
-               .select('client_id, servicii_cerute, status')
-               .in('client_id', chunk)
-               .eq('status', 'draft');
-            if (data) activeEvents.push(...data);
+        // 3. Fetch clean notebooks from client_notebooks_v2 using unique phone numbers
+        const uniquePhones = [...new Set(clientsRaw.map(c => c.real_phone_e164).filter(Boolean))];
+        const cleanNotebooksRaw: any[] = [];
+        for (let i = 0; i < uniquePhones.length; i += 200) {
+            const chunk = uniquePhones.slice(i, i + 200);
+            const { data } = await supabase.from('client_notebooks_v2')
+               .select('phone_number, wa_number, clean_notebook')
+               .in('phone_number', chunk);
+            if (data) cleanNotebooksRaw.push(...data);
         }
-            
-        const eventsMap = new Map(activeEvents?.map(e => [e.client_id, e.servicii_cerute]) || []);
+        
+        const cleanNotebookMap = new Map<string, any>();
+        for (const n of cleanNotebooksRaw) {
+             cleanNotebookMap.set(`${n.phone_number}|${n.wa_number}`, n.clean_notebook);
+             if (!cleanNotebookMap.has(n.phone_number)) {
+                 cleanNotebookMap.set(n.phone_number, n.clean_notebook);
+             }
+        }
 
         // 4. Fetch whatsapp_sessions to resolve SESSION_xxx -> proper brand label
         const { data: sessions } = await supabase.from('whatsapp_sessions')
@@ -102,14 +108,18 @@ export async function GET() {
                           resolvedBrand = brandFixMap.get(resolvedBrand)!;
                         }
                         
+                        // Cauta clean_notebook stric pentru brand_key specific
+                        const notebookKey = `${phoneNumber}|${resolvedBrand || ''}`;
+                        const cleanNotebookData = cleanNotebookMap.get(notebookKey) || {}; // Daca nu are istoric pe QR-ul asta, pleaca de la zero. NU folosi alte QR-uri.
+                             
                         // Structure to match what the frontend expects today
                         notebooks.push({
                            client_id: cid,
                            phone_number: phoneNumber,
                            alias: alias,
                            template_key: 'Live Chat',
-                           // We merge the requested services here so UI column 3 can read it
-                           extracted_data: eventsMap.get(cid) || {}, 
+                           // Returneaza clean_notebook JSON, nu SLOT_U0QR
+                           extracted_data: cleanNotebookData, 
                            avatar_url: c.avatar_url,
                            brand_key: resolvedBrand,
                            last_message_at: lastMessageMap.get(cid) || null
