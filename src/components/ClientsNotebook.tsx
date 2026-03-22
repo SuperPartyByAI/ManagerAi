@@ -131,7 +131,7 @@ export default function ClientsNotebook() {
   };
 
   return (
-    <div style={{ padding: "20px", maxWidth: "1800px", width: "100%", margin: "0 auto", overflowY: "auto", maxHeight: "calc(100vh - 180px)" }}>
+    <div style={{ padding: "20px", maxWidth: "1800px", width: "100%", margin: "0 auto" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
         <div>
