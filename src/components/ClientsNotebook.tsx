@@ -20,6 +20,7 @@ function normalizeNotebook(nb: Record<string, string> | Record<string, string>[]
 }
 
 const FIELD_LABELS: Record<string, string> = {
+  rezumat_ai: "🧠 Memorie AI (Rezumat)",
   data_eveniment: "📅 Data evenimentului",
   ora_eveniment: "🕐 Ora",
   serviciu: "🎪 Serviciu",
@@ -40,6 +41,7 @@ export default function ClientsNotebook() {
   const [editing, setEditing] = useState<string | null>(null);
   const [editData, setEditData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   const [chatHistory, setChatHistory] = useState<any[] | null>(null);
@@ -117,6 +119,16 @@ export default function ClientsNotebook() {
       await fetchClients();
     } finally {
       setSaving(false);
+    }
+  };
+
+  const generateMemory = async (client: ClientNotebook) => {
+    setGenerating(true);
+    try {
+      await fetch(`/api/admin/crm/clients/${client.id}/summarize`, { method: 'POST' });
+      await fetchClients();
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -236,14 +248,26 @@ export default function ClientsNotebook() {
                       {/* Action buttons */}
                       <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
                         {!isEditing ? (
-                          <button
-                            onClick={e => { e.stopPropagation(); startEdit(client); }}
-                            style={{
-                              background: "rgba(99,102,241,0.2)", border: "1px solid rgba(99,102,241,0.4)",
-                              color: "#a5b4fc", borderRadius: "8px", padding: "6px 14px",
-                              cursor: "pointer", fontSize: "13px"
-                            }}
-                          >✏️ Editează</button>
+                          <div style={{ display: "flex", gap: "10px" }}>
+                            <button
+                              onClick={e => { e.stopPropagation(); startEdit(client); }}
+                              style={{
+                                background: "rgba(99,102,241,0.2)", border: "1px solid rgba(99,102,241,0.4)",
+                                color: "#a5b4fc", borderRadius: "8px", padding: "6px 14px",
+                                cursor: "pointer", fontSize: "13px"
+                              }}
+                            >✏️ Editează</button>
+                            <button
+                              onClick={e => { e.stopPropagation(); generateMemory(client); }}
+                              disabled={generating}
+                              style={{
+                                background: "rgba(234,179,8,0.1)", border: "1px solid rgba(234,179,8,0.3)",
+                                color: "#fde047", borderRadius: "8px", padding: "6px 14px",
+                                cursor: generating ? "not-allowed" : "pointer", fontSize: "13px",
+                                opacity: generating ? 0.6 : 1
+                              }}
+                            >{generating ? "🧠 Gândește..." : "🧠 Generează Memorie"}</button>
+                          </div>
                         ) : (
                           <>
                             <button
@@ -308,12 +332,14 @@ export default function ClientsNotebook() {
                           {nbFields.map(([k, v]) => (
                             <div key={k} style={{
                               background: "rgba(255,255,255,0.03)", borderRadius: "8px",
-                              padding: "10px 14px", border: "1px solid rgba(255,255,255,0.06)"
+                              padding: k === 'rezumat_ai' || k === 'observatii' ? "14px" : "10px 14px", 
+                              border: "1px solid rgba(255,255,255,0.06)",
+                              gridColumn: k === 'rezumat_ai' || k === 'observatii' ? "1 / -1" : "auto"
                             }}>
                               <div style={{ fontSize: "11px", color: "#6b7280", marginBottom: "4px" }}>
                                 {FIELD_LABELS[k] || k}
                               </div>
-                              <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 500 }}>
+                              <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 500, whiteSpace: "pre-wrap" }}>
                                 {String(v)}
                               </div>
                             </div>
