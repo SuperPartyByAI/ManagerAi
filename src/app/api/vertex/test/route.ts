@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
     // Add current message
     contents.push({ role: "user", parts: [{ text: message }] });
 
-    const model = cfg.vertex_model || "gemini-2.0-flash-lite";
+    const model = cfg.vertex_model || "gemini-2.5-flash-lite";
     const temperature = Number.parseFloat(cfg.temperature || "0.3");
     const maxTokens = Number.parseInt(cfg.max_tokens || "2048", 10);
     const project = process.env.VERTEX_AI_PROJECT || "superparty-vertex-ai";

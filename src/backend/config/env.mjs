@@ -7,9 +7,9 @@ export const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // ─── Gemini API (primary) ───
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-export const GEMINI_MODEL = 'gemini-2.0-flash-lite';
-if (GEMINI_MODEL !== 'gemini-2.0-flash-lite') {
-    console.error("CRITICAL ERROR: DOAR gemini-2.0-flash-lite ESTE PERMIS IN APLICATIE!");
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+if (GEMINI_MODEL !== 'gemini-2.5-flash-lite') {
+    console.error("CRITICAL ERROR: DOAR gemini-2.5-flash-lite ESTE RECOMANDAT IN APLICATIE! Cost optimization limit.");
     process.exit(1);
 }
 export const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';

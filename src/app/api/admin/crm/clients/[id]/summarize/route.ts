@@ -58,7 +58,7 @@ ${messages}`;
     let summary = '';
     try {
         const response = await ai.models.generateContent({
-            model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+            model: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
             contents: prompt,
         });
         summary = response.text || "Nu s-a putut genera un rezumat (text returnat vid).";
