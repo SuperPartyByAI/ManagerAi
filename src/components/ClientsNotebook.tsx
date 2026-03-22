@@ -20,7 +20,6 @@ function normalizeNotebook(nb: Record<string, string> | Record<string, string>[]
 }
 
 const FIELD_LABELS: Record<string, string> = {
-  rezumat_ai: "🧠 Memorie AI (Rezumat)",
   data_eveniment: "📅 Data evenimentului",
   ora_eveniment: "🕐 Ora",
   serviciu: "🎪 Serviciu",
@@ -271,6 +270,41 @@ export default function ClientsNotebook() {
                           </>
                         )}
                       </div>
+
+                      {/* AI Brain Box */}
+                      {isEditing ? (
+                        <div style={{ marginBottom: "14px" }}>
+                            <label style={{ fontSize: "14px", color: "#a5b4fc", display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px", fontWeight: "bold" }}>
+                              🧠 Editează Memorie AI
+                            </label>
+                            <textarea
+                              value={editData.rezumat_ai || ""}
+                              onChange={e => setEditData(prev => ({ ...prev, rezumat_ai: e.target.value }))}
+                              rows={4}
+                              style={{
+                                width: "100%", padding: "10px",
+                                background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.3)",
+                                borderRadius: "8px", color: "#e0e7ff", fontSize: "13px", boxSizing: "border-box", resize: "vertical"
+                              }}
+                            />
+                        </div>
+                      ) : client.clean_notebook?.rezumat_ai ? (
+                        <div style={{ 
+                            background: "rgba(99,102,241,0.1)", 
+                            border: "1px solid rgba(99,102,241,0.3)", 
+                            borderRadius: "8px", 
+                            padding: "12px 14px", 
+                            marginBottom: "16px",
+                            boxShadow: "0 2px 10px rgba(99,102,241,0.05)"
+                        }}>
+                          <div style={{ fontSize: "13px", color: "#a5b4fc", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+                            🧠 Creier AI - Memorie Centrală
+                          </div>
+                          <div style={{ fontSize: "14px", color: "#e0e7ff", lineHeight: "1.5", whiteSpace: "pre-wrap" }}>
+                            {client.clean_notebook.rezumat_ai}
+                          </div>
+                        </div>
+                      ) : null}
 
                       {/* Fields grid */}
                       {isEditing ? (
