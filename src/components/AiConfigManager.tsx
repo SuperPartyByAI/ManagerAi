@@ -4,14 +4,16 @@ import { useState, useEffect, useCallback } from "react";
 type GoalStrategy = { goal_key: string; name: string; strategy: string; updated_at: string };
 type FollowupTemplate = { type: string; name: string; message: string; delay_hours: number; updated_at: string };
 type Playbook = { key: string; name: string; strategy: string; tone: string; description: string };
+type CorePrompt = { config_key: string; config_value: string };
 
-type Tab = "goals" | "followup" | "playbook";
+type Tab = "goals" | "followup" | "playbook" | "corePrompts";
 
 export default function AiConfigManager() {
   const [tab, setTab] = useState<Tab>("goals");
   const [goals, setGoals] = useState<GoalStrategy[]>([]);
   const [followups, setFollowups] = useState<FollowupTemplate[]>([]);
   const [playbook, setPlaybook] = useState<Playbook[]>([]);
+  const [corePrompts, setCorePrompts] = useState<CorePrompt[]>([]);
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,7 @@ export default function AiConfigManager() {
       setGoals(data.goals || []);
       setFollowups(data.followups || []);
       setPlaybook(data.playbook || []);
+      setCorePrompts(data.corePrompts || []);
     } finally {
       setLoading(false);
     }
@@ -50,6 +53,7 @@ export default function AiConfigManager() {
     { id: "goals", label: "Strategii Vânzare", emoji: "🎯", color: "emerald" },
     { id: "followup", label: "Follow-up Auto", emoji: "⏰", color: "blue" },
     { id: "playbook", label: "Scenarii", emoji: "📋", color: "purple" },
+    { id: "corePrompts", label: "Creier AI", emoji: "🧠", color: "rose" },
   ];
 
   return (
@@ -64,13 +68,14 @@ export default function AiConfigManager() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 border-b border-white/10 pb-2 overflow-x-auto no-scrollbar">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border whitespace-nowrap ${
               tab === t.id
                 ? t.color === "emerald" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50"
                 : t.color === "blue" ? "bg-blue-500/20 text-blue-400 border-blue-500/50"
+                : t.color === "rose" ? "bg-rose-500/20 text-rose-400 border-rose-500/50"
                 : "bg-purple-500/20 text-purple-400 border-purple-500/50"
                 : "text-gray-400 border-transparent hover:bg-white/5"
             }`}>
@@ -106,7 +111,48 @@ export default function AiConfigManager() {
             onSave={(strategy) => save("sales_playbooks", "key", p.key, { strategy })}
             saving={saving === p.key} saved={saved === p.key} />
         ))}
+
+        {/* CORE PROMPTS TAB */}
+        {!loading && tab === "corePrompts" && corePrompts.map(p => (
+          <PromptCard key={p.config_key} item={p}
+            onSave={(config_value) => save("vertex_config", "config_key", p.config_key, { config_value })}
+            saving={saving === p.config_key} saved={saved === p.config_key} />
+        ))}
       </div>
+    </div>
+  );
+}
+
+function PromptCard({ item, onSave, saving, saved }: { item: CorePrompt; onSave: (v: string) => void; saving: boolean; saved: boolean }) {
+  const [val, setVal] = useState(item.config_value);
+  useEffect(() => setVal(item.config_value), [item.config_value]);
+  const dirty = val !== item.config_value;
+
+  const names: Record<string, string> = {
+    'prompt_worker_system': 'Worker Intent Extractor (Creier Principal Backend)',
+    'prompt_worker_retroactive': 'Worker Retroactive (Preluare Evenimente Trecute)',
+    'prompt_orchestrator_system': 'Orchestrator System Rules (Decizii și Apel Tool-uri)',
+    'prompt_orchestrator_reply': 'Orchestrator Reply Grammar (Formulare Text Final)',
+  };
+
+  return (
+    <div className="glass-panel rounded-xl p-4 space-y-3 border border-white/5 bg-black/20">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="font-semibold text-rose-400 text-sm">{names[item.config_key] || item.config_key}</div>
+          <div className="text-[10px] text-gray-500 font-mono mt-1">{item.config_key}</div>
+        </div>
+        {saved && <span className="text-xs text-rose-400">✓ Salvat în BD!</span>}
+      </div>
+      <textarea value={val} onChange={e => setVal(e.target.value)}
+        className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-xs text-green-400 resize-none font-mono focus:outline-none focus:border-rose-500/50 transition-all custom-scrollbar"
+        rows={15} />
+      {dirty && (
+        <button onClick={() => onSave(val)} disabled={saving}
+          className="px-4 py-2 bg-rose-500/20 text-rose-400 border border-rose-500/40 rounded-lg text-sm font-medium hover:bg-rose-500/30 transition-all disabled:opacity-50 flex items-center gap-2">
+          {saving ? "🔄 Se injectează în Creier..." : "💾 Salvează Schimbările Definitive"}
+        </button>
+      )}
     </div>
   );
 }
