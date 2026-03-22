@@ -2,8 +2,10 @@
 
 export const dynamic = 'force-dynamic';
 
+import dynamicImport from "next/dynamic";
 import { useState, useEffect, useRef, useCallback } from "react";
-import RolesManager from "../components/RolesManager";
+// RolesManager folosește localStorage + fetch async → doar client, fără SSR
+const RolesManager = dynamicImport(() => import("../components/RolesManager"), { ssr: false });
 import VertexConfig from "../components/VertexConfig";
 import CollaboratorsManager from "../components/CollaboratorsManager";
 import EmployeesBoard from "../components/EmployeesBoard";

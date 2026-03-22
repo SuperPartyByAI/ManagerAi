@@ -73,9 +73,10 @@ export default function RolesManager() {
       
       setEditServiciu(isJsonReady && conf.label ? conf.label : p.serviciu);
       
-      const tags = [];
-      if (conf.triggers?.service_tags) tags.push(...conf.triggers.service_tags);
-      if (conf.triggers?.keywords) tags.push(...conf.triggers.keywords);
+      const tags = Array.from(new Set([
+        ...(conf.triggers?.service_tags || []),
+        ...(conf.triggers?.keywords || []),
+      ]));
       setEditTaguri(isJsonReady && tags.length > 0 ? tags.join(', ') : p.taguri);
       
       const fields = conf.constraints?.must_collect_fields || [];
