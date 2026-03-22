@@ -8,6 +8,7 @@ import VertexConfig from "../components/VertexConfig";
 import CollaboratorsManager from "../components/CollaboratorsManager";
 import EmployeesBoard from "../components/EmployeesBoard";
 import EventsBoard from "../components/EventsBoard";
+import AiConfigManager from "../components/AiConfigManager";
 import CostumesManager from "../components/CostumesManager";
 
 type RoleDef = { id: string; title: string; detalii: string[] };
@@ -61,10 +62,10 @@ export default function CopilotPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
   const [leftPanelMode, setLeftPanelMode] = useState<"conversations" | "testai">("conversations");
   const [middlePanelMode, setMiddlePanelMode] = useState<"notebook" | "liveagent">("notebook");
-  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex">(() => {
+  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "aiconfig">(() => {
     if (typeof window !== "undefined") {
       const savedView = localStorage.getItem("superparty_admin_view");
-      if (savedView && ["whatsapp","roles","collaborators","employees","events","costumes","vertex"].includes(savedView)) return savedView as any;
+      if (savedView && ["whatsapp","roles","collaborators","employees","events","costumes","vertex","aiconfig"].includes(savedView)) return savedView as any;
     }
     return "whatsapp";
   });
@@ -565,8 +566,9 @@ export default function CopilotPage() {
             { key: "employees", icon: "👷", label: "Angajați", color: "indigo" },
             { key: "events", icon: "📅", label: "Evenimente", color: "purple" },
             { key: "costumes", icon: "🎭", label: "Costume", color: "pink" },
-            { key: "vertex", icon: "🧠", label: "Creier AI", color: "slate" },
-          ] as { key: "whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex"; icon: string; label: string; color: string }[]).map(({ key, icon, label }) => (
+            { key: "aiconfig", icon: "⚙️", label: "Config AI", color: "cyan" },
+            { key: "vertex", icon: "🔧", label: "Vertex", color: "slate" },
+          ] as { key: "whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "aiconfig" | "vertex"; icon: string; label: string; color: string }[]).map(({ key, icon, label }) => (
             <button
               key={key}
               onClick={() => setCurrentView(key)}
@@ -1278,16 +1280,15 @@ export default function CopilotPage() {
         {/* Costumes Manager Module */}
         {currentView === "costumes" && <CostumesManager />}
 
-
+        {/* AI Config Module */}
+        {currentView === "aiconfig" && (
+          <div className="col-span-3 h-full overflow-hidden glass-panel rounded-2xl">
+            <AiConfigManager />
+          </div>
+        )}
 
         {/* Vertex AI Config Module */}
-        {currentView === "vertex" && (
-          <main className="flex-1 w-full p-4 overflow-hidden h-full">
-            <div className="w-full h-full overflow-hidden glass-panel rounded-2xl">
-              <VertexConfig />
-            </div>
-          </main>
-        )}
+        {currentView === "vertex" && <VertexConfig />}
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `

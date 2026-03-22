@@ -333,8 +333,7 @@ export default function VertexConfig() {
                     <div className="space-y-4">
                       {[
                         { key: "system_prompt", label: "Sistem Prompt Principal", desc: "Rolul de bază al AI-ului. Definitoriu." },
-                        { key: "greeting_rule", label: "Regulă Salutare (Prima Interacțiune)", desc: "Forțează AI-ul să te salute EXCLUSIV cu formula specificată aici. Lăsat gol, AI-ul va inventa un salut." },
-                        { key: "prompt_rule_event_context", label: "Regula Actualizare Memorie", desc: "Forțează AI-ul să folosească petrecerile deja reținute." },
+                        { key: "prompt_rule_event_context", label: "Filtrul Context Evenimente (Anti-Dublare)", desc: "Regula critică pentru a evita dublarea petrecerilor când clientul dă o altă dată." },
                         { key: "prompt_continuation_actualizare", label: "Regula: Continuare UPDATE", desc: "Se declanșează dacă e nevoie de modificare" },
                         { key: "prompt_continuation_anuleaza", label: "Regula: Continuare ANULARE", desc: "Se declanșează dacă vine un trigger de anulare" },
                         { key: "prompt_continuation_reactivare", label: "Regula: Continuare RESTAURARE", desc: "Pentru reveniri după anulare" },
