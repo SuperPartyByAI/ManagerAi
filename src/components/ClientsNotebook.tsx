@@ -122,15 +122,6 @@ export default function ClientsNotebook() {
     }
   };
 
-  const generateMemory = async (client: ClientNotebook) => {
-    setGenerating(true);
-    try {
-      await fetch(`/api/admin/crm/clients/${client.id}/summarize`, { method: 'POST' });
-      await fetchClients();
-    } finally {
-      setGenerating(false);
-    }
-  };
 
   return (
     <div style={{ padding: "20px", maxWidth: "1800px", width: "100%", margin: "0 auto" }}>
