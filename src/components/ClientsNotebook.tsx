@@ -131,7 +131,7 @@ export default function ClientsNotebook() {
   };
 
   return (
-    <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto", overflowY: "auto", maxHeight: "calc(100vh - 180px)" }}>
+    <div style={{ padding: "20px", maxWidth: "1800px", width: "100%", margin: "0 auto", overflowY: "auto", maxHeight: "calc(100vh - 180px)" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
         <div>
@@ -337,11 +337,7 @@ export default function ClientsNotebook() {
                             </div>
                           ))}
                         </div>
-                      ) : (
-                        <div style={{ color: "#6b7280", fontSize: "13px", textAlign: "center", padding: "20px 0" }}>
-                          📭 Notebook gol — AI-ul va completa automat după 30+ mesaje.
-                        </div>
-                      )}
+                      ) : null}
 
                       {/* Chat History block */}
                       {chatHistory !== null && (

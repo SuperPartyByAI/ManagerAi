@@ -1296,7 +1296,7 @@ export default function CopilotPage() {
 
         {/* Notebook Module */}
         {currentView === "notebook" && (
-          <div className="col-span-3 h-full overflow-y-auto">
+          <div className="w-full h-full overflow-y-auto">
             <ClientsNotebook />
           </div>
         )}
