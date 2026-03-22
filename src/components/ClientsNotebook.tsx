@@ -7,13 +7,13 @@ interface ClientNotebook {
   phone_number: string;
   wa_number: string;
   brand_key: string | null;
-  clean_notebook: Record<string, string> | Record<string, string>[];
+  clean_notebook: any;
   summary_updated_at: string;
   created_at: string;
 }
 
 // Helper: normalizează clean_notebook — poate fi array sau obiect
-function normalizeNotebook(nb: Record<string, string> | Record<string, string>[] | null): Record<string, string> {
+function normalizeNotebook(nb: any): Record<string, any> {
   if (!nb) return {};
   if (Array.isArray(nb)) return nb[0] || {}; // backfill vechi a stocat ca array
   return nb;
