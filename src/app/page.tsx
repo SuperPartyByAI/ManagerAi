@@ -1295,7 +1295,11 @@ export default function CopilotPage() {
         )}
 
         {/* Notebook Module */}
-        {currentView === "notebook" && <ClientsNotebook />}
+        {currentView === "notebook" && (
+          <div className="col-span-3 h-full overflow-y-auto">
+            <ClientsNotebook />
+          </div>
+        )}
 
         {/* Vertex AI Config Module */}
         {currentView === "vertex" && <VertexConfig />}
