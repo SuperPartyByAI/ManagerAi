@@ -7,9 +7,16 @@ interface ClientNotebook {
   phone_number: string;
   wa_number: string;
   brand_key: string | null;
-  clean_notebook: Record<string, string>;
+  clean_notebook: Record<string, string> | Record<string, string>[];
   summary_updated_at: string;
   created_at: string;
+}
+
+// Helper: normalizează clean_notebook — poate fi array sau obiect
+function normalizeNotebook(nb: Record<string, string> | Record<string, string>[] | null): Record<string, string> {
+  if (!nb) return {};
+  if (Array.isArray(nb)) return nb[0] || {}; // backfill vechi a stocat ca array
+  return nb;
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -64,7 +71,7 @@ export default function ClientsNotebook() {
 
   const startEdit = (client: ClientNotebook) => {
     setEditing(client.id);
-    setEditData({ ...client.clean_notebook });
+    setEditData({ ...normalizeNotebook(client.clean_notebook) });
   };
 
   const saveEdit = async (client: ClientNotebook) => {
@@ -97,7 +104,7 @@ export default function ClientsNotebook() {
   };
 
   return (
-    <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+    <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto", overflowY: "auto", maxHeight: "calc(100vh - 180px)" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
         <div>
@@ -152,7 +159,7 @@ export default function ClientsNotebook() {
           {filteredClients.map(client => {
             const isExpanded = expanded === client.id;
             const isEditing = editing === client.id;
-            const nbFields = Object.entries(client.clean_notebook || {}).filter(([, v]) => v);
+            const nbFields = Object.entries(normalizeNotebook(client.clean_notebook)).filter(([, v]) => v);
 
             return (
               <div
