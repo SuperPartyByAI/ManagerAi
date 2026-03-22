@@ -13,7 +13,7 @@ interface ClientNotebook {
 }
 
 // Helper: normalizează clean_notebook — poate fi array sau obiect
-function normalizeNotebook(nb: any): Record<string, any> {
+function normalizeNotebook(nb: any): Record<string, string> {
   if (!nb) return {};
   if (Array.isArray(nb)) return nb[0] || {}; // backfill vechi a stocat ca array
   return nb;
@@ -37,6 +37,11 @@ export default function ClientsNotebook() {
   const [clients, setClients] = useState<ClientNotebook[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [viewAiMemory, setViewAiMemory] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editData, setEditData] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   const [chatHistory, setChatHistory] = useState<any[] | null>(null);
@@ -93,6 +98,29 @@ export default function ClientsNotebook() {
            notebookStr.includes(search);
   });
 
+  const startEdit = (client: ClientNotebook) => {
+    setEditing(client.id);
+    setEditData({ ...normalizeNotebook(client.clean_notebook) });
+  };
+
+  const saveEdit = async (client: ClientNotebook) => {
+    setSaving(true);
+    try {
+      await fetch("/api/admin/clients-notebook", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone_number: client.phone_number,
+          wa_number: client.wa_number,
+          clean_notebook: editData,
+        }),
+      });
+      setEditing(null);
+      await fetchClients();
+    } finally {
+      setSaving(false);
+    }
+  };
 
 
   return (
@@ -150,7 +178,8 @@ export default function ClientsNotebook() {
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {filteredClients.map(client => {
             const isExpanded = expanded === client.id;
-            const nbFields = Object.entries(normalizeNotebook(client.clean_notebook)).filter(([, v]) => v);
+            const isEditing = editing === client.id;
+            const nbFields = Object.entries(normalizeNotebook(client.clean_notebook)).filter(([k, v]) => v && k !== 'rezumat_ai');
 
             return (
               <div
@@ -163,7 +192,7 @@ export default function ClientsNotebook() {
               >
                 {/* Card Header */}
                 <div
-                  onClick={() => { setExpanded(isExpanded ? null : client.id); }}
+                  onClick={() => { setExpanded(isExpanded ? null : client.id); setEditing(null); }}
                   style={{
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                     padding: "14px 18px", cursor: "pointer",
@@ -207,35 +236,87 @@ export default function ClientsNotebook() {
                 {isExpanded && (
                   <div style={{ padding: "0 18px 18px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                     <div style={{ paddingTop: "14px" }}>
-
-                      {/* AI Brain Box (Singura Sursă de Adevăr) */}
-                      {client.clean_notebook?.rezumat_ai ? (
-                          <div style={{ 
-                              background: "rgba(99,102,241,0.1)", 
-                              border: "1px solid rgba(99,102,241,0.4)", 
-                              borderRadius: "8px", 
-                              padding: "16px", 
-                              marginBottom: "20px",
-                              boxShadow: "0 4px 12px rgba(99,102,241,0.08)"
-                          }}>
-                            <div style={{ fontSize: "14px", color: "#a5b4fc", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px", borderBottom: "1px solid rgba(99,102,241,0.2)", paddingBottom: "8px" }}>
-                              🧠 Creier AI - Memorie Centrală (Adevăr Absolut)
-                            </div>
-                            <div style={{ fontSize: "15px", color: "#e0e7ff", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
-                              {client.clean_notebook.rezumat_ai}
-                            </div>
+                      {/* Action buttons */}
+                      <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
+                        {!isEditing ? (
+                          <div style={{ display: "flex", gap: "10px" }}>
+                            <button
+                              onClick={e => { e.stopPropagation(); startEdit(client); }}
+                              style={{
+                                background: "rgba(99,102,241,0.2)", border: "1px solid rgba(99,102,241,0.4)",
+                                color: "#a5b4fc", borderRadius: "8px", padding: "6px 14px",
+                                cursor: "pointer", fontSize: "13px"
+                              }}
+                            >✏️ Editează</button>
+                            <button
+                              onClick={e => { e.stopPropagation(); setViewAiMemory(client.id); }}
+                              style={{
+                                background: "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.4)",
+                                color: "#d8b4fe", borderRadius: "8px", padding: "6px 14px",
+                                cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px"
+                              }}
+                            >🧠 Adevăr AI</button>
                           </div>
-                      ) : (
-                          <div style={{ 
-                              background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.1)", 
-                              borderRadius: "8px", padding: "16px", marginBottom: "20px", color: "#6b7280", fontSize: "14px", fontStyle: "italic"
-                          }}>
-                            🧠 Creier AI: Nicio memorie generată încă. Sistemul așteaptă conversația organică a clientului...
-                          </div>
-                      )}
+                        ) : (
+                          <>
+                            <button
+                              onClick={e => { e.stopPropagation(); saveEdit(client); }}
+                              disabled={saving}
+                              style={{
+                                background: "rgba(16,185,129,0.2)", border: "1px solid rgba(16,185,129,0.4)",
+                                color: "#6ee7b7", borderRadius: "8px", padding: "6px 14px",
+                                cursor: "pointer", fontSize: "13px"
+                              }}
+                            >{saving ? "⏳..." : "💾 Salvează"}</button>
+                            <button
+                              onClick={e => { e.stopPropagation(); setEditing(null); }}
+                              style={{
+                                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                                color: "#9ca3af", borderRadius: "8px", padding: "6px 14px",
+                                cursor: "pointer", fontSize: "13px"
+                              }}
+                            >✕ Anulează</button>
+                          </>
+                        )}
+                      </div>
 
-                      {/* Fields grid (Read-Only) */}
-                      {nbFields.length > 0 ? (
+                      {/* Fields grid */}
+                      {isEditing ? (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                          {Object.keys(FIELD_LABELS).map(key => (
+                            <div key={key}>
+                              <label style={{ fontSize: "12px", color: "#9ca3af", display: "block", marginBottom: "4px" }}>
+                                {FIELD_LABELS[key]}
+                              </label>
+                              <input
+                                value={editData[key] || ""}
+                                onChange={e => setEditData(prev => ({ ...prev, [key]: e.target.value }))}
+                                placeholder="—"
+                                style={{
+                                  width: "100%", padding: "8px 10px",
+                                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)",
+                                  borderRadius: "8px", color: "#fff", fontSize: "13px", boxSizing: "border-box"
+                                }}
+                              />
+                            </div>
+                          ))}
+                          <div style={{ gridColumn: "1/-1" }}>
+                            <label style={{ fontSize: "12px", color: "#9ca3af", display: "block", marginBottom: "4px" }}>
+                              📝 Observații
+                            </label>
+                            <textarea
+                              value={editData.observatii || ""}
+                              onChange={e => setEditData(prev => ({ ...prev, observatii: e.target.value }))}
+                              rows={3}
+                              style={{
+                                width: "100%", padding: "8px 10px",
+                                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)",
+                                borderRadius: "8px", color: "#fff", fontSize: "13px", boxSizing: "border-box", resize: "vertical"
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ) : nbFields.length > 0 ? (
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                           {nbFields.map(([k, v]) => (
                             <div key={k} style={{
@@ -304,6 +385,27 @@ export default function ClientsNotebook() {
           {filteredClients.length} clienți • Memorie se actualizează automat la fiecare 30 mesaje noi
         </div>
       )}
+
+      {/* AI Memory Modal Overlay */}
+      {viewAiMemory && (() => {
+         const activeClient = clients.find(c => c.id === viewAiMemory);
+         const rezumat = normalizeNotebook(activeClient?.clean_notebook)?.rezumat_ai || "Nicio memorie AI organică nu a fost generată vizibil încă în conversație.";
+         return (
+         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "20px" }}>
+             <div style={{ background: "#1e1b4b", borderRadius: "16px", padding: "24px", maxWidth: "800px", width: "100%", border: "1px solid rgba(139,92,246,0.5)", boxShadow: "0 10px 40px rgba(0,0,0,0.8)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid rgba(139,92,246,0.2)", paddingBottom: "12px" }}>
+                    <h3 style={{ margin: 0, color: "#e0e7ff", fontSize: "18px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      🧠 Creier AI - Sumar {activeClient?.phone_number} (Adevăr Absolut)
+                    </h3>
+                    <button onClick={() => setViewAiMemory(null)} style={{ background: "transparent", border: "none", color: "#9ca3af", fontSize: "20px", cursor: "pointer" }}>✕</button>
+                </div>
+                <div style={{ color: "#c7d2fe", fontSize: "16px", lineHeight: "1.6", overflowY: "auto", flex: 1, whiteSpace: "pre-wrap", paddingRight: "8px" }}>
+                    {rezumat}
+                </div>
+             </div>
+         </div>
+         );
+      })()}
     </div>
   );
 }
