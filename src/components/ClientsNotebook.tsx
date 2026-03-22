@@ -248,16 +248,6 @@ export default function ClientsNotebook() {
                                 cursor: "pointer", fontSize: "13px"
                               }}
                             >✏️ Editează</button>
-                            <button
-                              onClick={e => { e.stopPropagation(); generateMemory(client); }}
-                              disabled={generating}
-                              style={{
-                                background: "rgba(234,179,8,0.1)", border: "1px solid rgba(234,179,8,0.3)",
-                                color: "#fde047", borderRadius: "8px", padding: "6px 14px",
-                                cursor: generating ? "not-allowed" : "pointer", fontSize: "13px",
-                                opacity: generating ? 0.6 : 1
-                              }}
-                            >{generating ? "🧠 Gândește..." : "🧠 Generează Memorie"}</button>
                           </div>
                         ) : (
                           <>
