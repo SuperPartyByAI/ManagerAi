@@ -179,7 +179,7 @@ export default function ClientsNotebook() {
           {filteredClients.map(client => {
             const isExpanded = expanded === client.id;
             const isEditing = editing === client.id;
-            const nbFields = Object.entries(normalizeNotebook(client.clean_notebook)).filter(([k, v]) => v && k !== 'rezumat_ai');
+            const nbFields = Object.entries(normalizeNotebook(client.clean_notebook)).filter(([k, v]) => v && k.indexOf('rezumat') === -1);
 
             return (
               <div
