@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 type Role = {
   id: string;
@@ -34,16 +34,22 @@ export default function RolesManager() {
   const [editedTitle, setEditedTitle] = useState("");
   const [editServiciu, setEditServiciu] = useState("");
   const [editTaguri, setEditTaguri] = useState("");
-  const [editDetalii, setEditDetalii] = useState("");
   
-  // NOU: Custom prompts pentru detaliile obligatorii conectate direct la AI
+  // NOU: Stare Listă pt Drag&Drop în loc de single string cu virgulă
+  const [editDetaliiList, setEditDetaliiList] = useState<string[]>([]);
+  
+  // Custom prompts pentru detaliile obligatorii conectate direct la AI
   const [editCustomPrompts, setEditCustomPrompts] = useState<Record<string, string>>({});
+  
+  // Ref Drag & Drop (useRef pentru stabilitate în timpul drag-ului, fără re-render)
+  const dragRef = useRef<{ from: number; list: string[] } | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const fetchRoles = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Pointed to the NEW natively JSON-structured AI Knowledge Base APi
       const res = await fetch("/api/admin/roles?brand=GLOBAL");
+      if (!res.ok) throw new Error("Fetch warning");
       const data = await res.json();
       const roleSources: Role[] = (data.sources || []);
       setRoles(roleSources);
@@ -63,7 +69,6 @@ export default function RolesManager() {
       const p = parseContent(activeRole.content);
       const conf = activeRole.policy_config || {};
       
-      // JSON has priority over legacy text parsing
       const isJsonReady = Object.keys(conf).length > 0;
       
       setEditServiciu(isJsonReady && conf.label ? conf.label : p.serviciu);
@@ -74,9 +79,9 @@ export default function RolesManager() {
       setEditTaguri(isJsonReady && tags.length > 0 ? tags.join(', ') : p.taguri);
       
       const fields = conf.constraints?.must_collect_fields || [];
-      setEditDetalii(isJsonReady && fields.length > 0 ? fields.join(', ') : p.detalii);
+      const parsedFields = isJsonReady && fields.length > 0 ? fields : p.detalii.split(",").map((f: string) => f.trim()).filter(Boolean);
+      setEditDetaliiList(parsedFields);
       
-      // Custom Prompts recovery
       const cp = conf.copy_blocks?.custom_prompts || {};
       setEditCustomPrompts(cp);
     }
@@ -86,9 +91,9 @@ export default function RolesManager() {
     if (!activeRoleId) return;
     setIsSaving(true);
     
-    // Structurăm noul policy_config oficial pentru bot
+    // Structurăm noul policy_config
     const newTags = editTaguri.split(",").map(t => t.trim()).filter(Boolean);
-    const newFields = editDetalii.split(",").map(f => f.trim()).filter(Boolean);
+    const newFields = editDetaliiList.map(f => f.trim()).filter(Boolean);
     
     const cleanCustomPrompts: Record<string, string> = {};
     for (const f of newFields) {
@@ -97,7 +102,6 @@ export default function RolesManager() {
         }
     }
     
-    // Asigurăm persistența regulilor de preț (dacă anterior existau din backend)
     const policy_config = {
         label: editServiciu,
         active: true,
@@ -110,7 +114,7 @@ export default function RolesManager() {
         pricing_rules: activeRole?.policy_config?.pricing_rules || null,
         constraints: {
             allow_discounts: activeRole?.policy_config?.constraints?.allow_discounts || false,
-            must_collect_fields: newFields,
+            must_collect_fields: newFields, // Ordinea exacta Drag&Drop e salvata aici
             must_not_confirm_availability: true,
             must_not_override_approved_prices: true
         },
@@ -129,7 +133,7 @@ export default function RolesManager() {
       });
       if (res.ok) {
         setRoles(prev => prev.map(r => r.id === activeRoleId ? { ...r, title: editedTitle, policy_config } : r));
-        alert("Salvat cu succes! Creierul AI are acum ultimele noutăți!");
+        alert("Salvat cu succes! Ordinea Drag & Drop a fost fixată, iar AI-ul o va urma cu strictețe!");
       } else {
         const d = await res.json();
         alert("Eroare la Salvare: " + (d.error || "Necunoscută"));
@@ -151,10 +155,12 @@ export default function RolesManager() {
       body: JSON.stringify({ brand: "GLOBAL", title: "Rol Nou", policy_config }),
     });
     
-    const data = await res.json();
-    if (res.ok && data.source) {
-      setRoles(prev => [data.source, ...prev]);
-      setActiveRoleId(data.source.id);
+    if (res.ok) {
+       const data = await res.json();
+       if (data.source) {
+          setRoles(prev => [data.source, ...prev]);
+          setActiveRoleId(data.source.id);
+       }
     }
   };
 
@@ -172,10 +178,65 @@ export default function RolesManager() {
   };
 
   const tagList = editTaguri.split(",").map(t => t.trim()).filter(Boolean);
-  const detaliiList = editDetalii.split(",").map(t => t.trim()).filter(Boolean);
 
   const handleCustomPromptChange = (field: string, val: string) => {
       setEditCustomPrompts(prev => ({ ...prev, [field]: val }));
+  };
+
+  // Drag and Drop Handlers — folosim useRef pentru stabilitate
+  const dragStart = (index: number) => {
+    dragRef.current = { from: index, list: [...editDetaliiList] };
+    setDragOverIndex(index);
+  };
+
+  const dragEnter = (index: number) => {
+    if (!dragRef.current || dragRef.current.from === index) return;
+    setDragOverIndex(index);
+    // Actualizăm lista vizual în timp real din ref-ul inițial
+    const newList = [...dragRef.current.list];
+    const [moved] = newList.splice(dragRef.current.from, 1);
+    newList.splice(index, 0, moved);
+    dragRef.current = { from: index, list: newList };
+    setEditDetaliiList(newList);
+  };
+
+  const dragEnd = () => {
+    dragRef.current = null;
+    setDragOverIndex(null);
+  };
+
+  const addConstraint = () => {
+    setEditDetaliiList([...editDetaliiList, `Câmp Nou ${editDetaliiList.length + 1}`]);
+  };
+  
+  const updateConstraint = (oldName: string, newName: string, idx: number) => {
+    const list = [...editDetaliiList];
+    list[idx] = newName;
+    setEditDetaliiList(list);
+    
+    if (oldName !== newName) {
+      setEditCustomPrompts(prev => {
+        const d = { ...prev };
+        if (d[oldName] !== undefined) {
+          d[newName] = d[oldName];
+          delete d[oldName];
+        }
+        return d;
+      });
+    }
+  };
+
+  const removeConstraint = (idx: number) => {
+    const list = [...editDetaliiList];
+    const removedName = list[idx];
+    list.splice(idx, 1);
+    setEditDetaliiList(list);
+    
+    setEditCustomPrompts(prev => {
+        const d = { ...prev };
+        delete d[removedName];
+        return d;
+    });
   };
 
   if (isLoading) {
@@ -273,35 +334,70 @@ export default function RolesManager() {
 
               <hr className="border-[var(--color-border)] opacity-50" />
 
-              {/* 3. Detalii Obligatorii */}
+              {/* 3. Detalii Obligatorii (Drag & Drop) */}
               <div className="bg-purple-900/10 p-5 rounded-2xl border border-purple-500/20">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xl">📌</span>
                   <h3 className="font-bold uppercase tracking-wider text-sm text-purple-300">Constangeri & Formula de Întrebare</h3>
                 </div>
-                <p className="text-xs text-[var(--color-dim)] mb-4">Introduceți mai jos câmpurile obligatorii de investigat de către asistent, despărțite prin virgulă. Căsuțele auto-generate dedesubt configurează *tonalitatea fixă* pe care AI-ul o va folosi când va scoate informația de la client.</p>
+                <p className="text-xs text-[var(--color-dim)] mb-4">
+                   Ordinea vizuală stabilită mai jos dictează SECVENȚA EXACTĂ (1 by 1) în care asistentul virtual va adresa întrebările clientului. 
+                   <strong className="block mt-1 text-purple-300">Tip: Trageți de carduri cu mouse-ul (Drag & Drop) pentru a reordona prioritățile sistemului!</strong>
+                </p>
                 
-                <input type="text" value={editDetalii} onChange={e => setEditDetalii(e.target.value)}
-                  className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-500/50 transition-all font-bold mb-5"
-                  placeholder="Data Evenimentului, Locația, Nume Sărbătorit..." />
-                
-                {detaliiList.length > 0 && (
-                  <div className="space-y-3 mt-4">
-                    {detaliiList.map(d => (
-                      <div key={d} className="flex flex-col gap-1 p-3 bg-black/30 rounded-xl border border-white/5">
+                <div className="space-y-3 mb-4">
+                  {editDetaliiList.map((d, index) => (
+                    <div 
+                      key={`constraint-${index}`}
+                      draggable
+                      onDragStart={() => dragStart(index)}
+                      onDragEnter={() => dragEnter(index)}
+                      onDragEnd={dragEnd}
+                      onDragOver={(e) => e.preventDefault()}
+                      className={`flex flex-col gap-2 p-3 bg-black/40 rounded-xl border ${dragOverIndex === index ? 'border-purple-500 opacity-60 scale-[0.98]' : 'border-white/10'} shadow-lg cursor-grab active:cursor-grabbing transition-all hover:bg-white/5 delay-75 group`}
+                    >
+                       <div className="flex items-center gap-3">
+                          <div className="text-purple-400 font-black text-xl bg-purple-500/10 h-10 w-10 shrink-0 rounded-lg border border-purple-500/20 shadow-inner flex items-center justify-center transition-all group-hover:bg-purple-500/20 group-hover:scale-105">
+                             {index + 1}
+                          </div>
+                          
+                          <div className="flex-1">
+                             <input 
+                               type="text"
+                               value={d}
+                               onChange={(e) => updateConstraint(d, e.target.value, index)}
+                               placeholder="Ex: Data Evenimentului"
+                               className="w-full bg-transparent font-bold text-white text-base focus:outline-none focus:text-purple-300 focus:border-b focus:border-purple-500/30 pb-1"
+                             />
+                          </div>
+
+                          <div className="flex flex-col gap-1 items-center shrink-0 opacity-20 group-hover:opacity-100 transition-opacity">
+                            <span className="text-[10px] text-gray-400 uppercase tracking-widest leading-none">Drag</span>
+                            <span className="text-2xl text-gray-400 rotate-90 scale-y-[2]">॥</span>
+                          </div>
+                          
+                          <button onClick={() => removeConstraint(index)} className="text-red-400/50 hover:text-red-400 px-3 py-1 text-2xl font-light hover:bg-red-500/10 rounded-lg transition-all" title="Șterge">×</button>
+                       </div>
+
+                       <div className="ml-12 pl-3 border-l-2 border-white/5 flex flex-col gap-2 mt-1">
                         <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Cum va cere AI-ul [{d}]?
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Tonul (Formula EXACTĂ folosită de AI pentru a întreba):
                         </span>
                         <input type="text" 
                           value={editCustomPrompts[d] || ""} 
                           onChange={e => handleCustomPromptChange(d, e.target.value)}
-                          className="w-full bg-transparent border-b border-white/10 px-2 py-1.5 text-sm focus:outline-none focus:border-emerald-400 focus:bg-white/5 transition-all text-emerald-100 placeholder:text-gray-600"
-                          placeholder={`ex: Scrie-mi te rog exact cum vrei să formuleze asistentul solicitarea pentru ${d}...`}
+                          className="w-full bg-black/30 border border-white/5 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-400/50 focus:bg-emerald-900/10 transition-all text-emerald-100 placeholder:text-gray-600 shadow-inner"
+                          placeholder={`ex: Vă rog să imi spuneti ${d}...`}
                         />
-                      </div>
-                    ))}
-                  </div>
-                )}
+                       </div>
+                    </div>
+                  ))}
+                  {editDetaliiList.length === 0 && <p className="text-sm text-[var(--color-dim)] italic text-center py-4 bg-black/20 rounded-xl border border-dashed border-white/10">Nicio constrângere. AI-ul nu va cere detalii suplimentare pentru acest rol. Adaugă una folosind butonul de mai jos.</p>}
+                </div>
+                
+                <button onClick={addConstraint} className="w-full py-3.5 mt-2 border-2 border-dashed border-purple-500/30 rounded-xl text-purple-400 font-bold hover:bg-purple-500/10 hover:border-purple-500/50 transition-all flex items-center justify-center gap-2 group shadow-sm">
+                   <span className="text-xl group-hover:scale-125 transition-transform">+</span> Adaugă o Nouă Constrângere
+                </button>
               </div>
             </div>
           </>

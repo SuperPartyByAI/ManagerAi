@@ -44,8 +44,13 @@ export async function PUT(req: NextRequest) {
     if (policy_config !== undefined) updates.policy_config = policy_config;
     if (is_active !== undefined) updates.active = is_active;
     
-    // Titlul simbolic actualizat mereu pe primul rand in template pentru usabilitate
-    if (title) updates.answer_template = title; 
+    // Titlul simbolic: actualizat pe prima linie din answer_template
+    if (title) {
+      const existing = await supabase.from("ai_knowledge_base").select("answer_template").eq("id", id).single();
+      const oldTemplate = existing.data?.answer_template || "";
+      const otherLines = oldTemplate.split("\n").slice(1).join("\n");
+      updates.answer_template = otherLines ? `${title}\n${otherLines}` : title;
+    }
 
     const { error } = await supabase.from("ai_knowledge_base").update(updates).eq("id", id);
     if (error) throw error;
