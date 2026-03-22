@@ -78,11 +78,10 @@ export default function ClientsNotebook() {
   useEffect(() => {
      setChatHistory(null);
      if (expanded) {
-         setLoadingChat(true);
          fetch(`/api/admin/crm/clients/${expanded}?_t=${Date.now()}`)
              .then(res => res.json())
-             .then(data => { setChatHistory(data.latest_messages || []); setLoadingChat(false); })
-             .catch(() => { setChatHistory([]); setLoadingChat(false); });
+             .then(data => { setChatHistory(data.latest_messages || []); })
+             .catch(() => { setChatHistory([]); });
      }
   }, [expanded]);
 
