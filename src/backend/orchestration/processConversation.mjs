@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, AI_AUTOREPLY_CUTOFF, WHTSUP_API_URL, WHTSUP_API_KEY } from '../config/env.mjs';
+import { 
+    SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, AI_AUTOREPLY_CUTOFF, WHTSUP_API_URL, WHTSUP_API_KEY,
+    AI_SHADOW_MODE_ENABLED, AI_SAFE_AUTOREPLY_ENABLED, AI_FULL_AUTOREPLY_ENABLED, AI_WAVE2_ENABLED
+} from '../config/env.mjs';
 import { callLocalLLM } from '../llm/client.mjs';
 import { postProcessServices } from '../services/postProcessServices.mjs';
 import { evaluateServiceConfidence } from '../services/evaluateServiceConfidence.mjs';
@@ -17,34 +20,21 @@ import { loadRelationshipData } from '../memory/loadRelationshipData.mjs';
 import { updateClientMemory } from '../memory/updateClientMemory.mjs';
 import { recordEvent, recordKbMiss } from '../analytics/recordAiEvent.mjs';
 import { detectEventMutation } from '../events/detectEventMutation.mjs';
-import { applyEventMutation } from '../events/applyEventMutation.mjs';
 import { evaluateNextStep } from './evaluateNextStep.mjs';
 import { evaluateAutonomy } from '../policy/evaluateAutonomy.mjs';
-import { evaluateEscalation } from '../policy/evaluateEscalation.mjs';
 import { evaluateFastPath } from './evaluateFastPath.mjs';
 import { buildFastPathReply } from '../replies/buildFastPathReply.mjs';
 import { shouldReplyNow, acquireConversationLock, releaseConversationLock } from '../policy/shouldReplyNow.mjs';
 import { evaluateOperatorHandoff, didClientSayReturn } from '../agent/followUpEngine.mjs';
 import { clearFollowUp } from '../orchestration/scheduleFollowUp.mjs';
-import { loadGoalState, transitionGoalState } from '../workflow/goalStateMachine.mjs';
-import { evaluateGoalTransition } from '../workflow/goalTransitions.mjs';
-import { evaluateNextBestAction } from '../workflow/evaluateNextBestAction.mjs';
+import { loadGoalState } from '../workflow/goalStateMachine.mjs';
 import { loadOrCreateEventPlan } from '../events/eventPlanAssembler.mjs';
-import { evaluateEventPlan } from '../events/eventPlanEvaluator.mjs';
-import { executeAiAction } from '../actions/actionExecutor.mjs';
+import { evaluateEventPlan } from '../events/evaluateEventPlan.mjs';
+import { executeAiAction } from '../actions/aiActionExecutor.mjs';
 import { loadLatestQuote } from '../quotes/buildQuoteDraft.mjs';
-import { formatQuoteForBrainTab } from '../quotes/quoteFormatter.mjs';
 import { loadRuntimeContext } from '../grounding/loadRuntimeContext.mjs';
-import { evaluateSafetyClass } from '../policy/evaluateSafetyClass.mjs';
-import { shouldIncludeInWave1, isWave1Eligible } from '../rollout/wave1Controller.mjs';
-import { evaluateRollback } from '../rollout/rollbackEvaluator.mjs';
 import { detectMemoryConflicts } from '../rollout/memoryConflictDetector.mjs';
 import { isWave2Eligible } from '../rollout/wave2Eligibility.mjs';
-import { verifyPostWrite } from '../rollout/postWriteVerifier.mjs';
-import {
-    AI_SHADOW_MODE_ENABLED, AI_SAFE_AUTOREPLY_ENABLED, AI_FULL_AUTOREPLY_ENABLED
-} from '../config/env.mjs';
-import { AI_WAVE2_ENABLED } from '../config/env.mjs';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -104,8 +94,8 @@ async function sendViaWhatsApp(conversationId, text) {
         }
         console.log(`[AutoSend] Message sent for ${conversationId}`);
         return true;
-    } catch (err) {
-        console.error('[AutoSend] Network error:', err.message);
+    } catch (error_) {
+        console.error('[AutoSend] Network error:', error_.message);
         return false;
     }
 }
@@ -229,9 +219,10 @@ export async function processConversation(conversation_id, message_id = null, op
         let hasExistingDraft = false;
         if (AI_AUTOREPLY_CUTOFF) {
             const { data: draftData } = await supabase
-                .from('ai_event_drafts')
+                .from('ai_client_events')
                 .select('created_at')
                 .eq('conversation_id', conversation_id)
+                .eq('status', 'draft') // Added this line
                 .maybeSingle();
             if (draftData && new Date(draftData.created_at) < new Date(AI_AUTOREPLY_CUTOFF)) {
                 hasExistingDraft = true;
@@ -246,15 +237,15 @@ export async function processConversation(conversation_id, message_id = null, op
         ).join('\n');
 
         // Extract last client message for service confidence guard
-        const lastClientMsg = messages.find(m => m.sender_type === 'client');
-        const lastClientMessageText = lastClientMsg?.content || '';
+        const lastClientMessageText = messages.find(m => m.sender_type === 'client')?.content || '';
 
         // ── 3.5. Fast Path Check ──
         // Skip entire LLM pipeline for simple greetings/discovery
         const { data: existingDraftForFP } = await supabase
-            .from('ai_event_drafts')
-            .select('id, services, draft_status')
+            .from('ai_client_events')
+            .select('id, servicii_cerute, status')
             .eq('conversation_id', conversation_id)
+            .eq('status', 'draft') // Added this line
             .maybeSingle();
 
         const { data: convStateForFP } = await supabase
@@ -430,7 +421,6 @@ export async function processConversation(conversation_id, message_id = null, op
         // ── AUTONOMOUS COMMERCIAL AGENT: Phase 1 Runtime ──
         const { loadLeadRuntimeState } = await import('../agent/loadLeadRuntimeState.mjs');
         const { saveLeadRuntimeState } = await import('../agent/saveLeadRuntimeState.mjs');
-        const { computeMissingFields } = await import('../agent/missingFieldsEngine.mjs');
         const { computeNextBestAction } = await import('../agent/nextBestActionPlanner.mjs');
 
         // ── AUTONOMOUS COMMERCIAL AGENT: Phase 3 Party Builder ──
@@ -444,7 +434,7 @@ export async function processConversation(conversation_id, message_id = null, op
 
         const activeRoles = await extractActiveRoles(lastClientMessageText, eventPlan);
         const activeRolesText = activeRoles && activeRoles.length > 0 ? buildActiveCommercialPoliciesBlock(activeRoles) : null;
-        const activeRoleKeys = activeRoles ? activeRoles.map(r => r.role_id) : [];
+        // activeRoleKeys deleted
         
         if (!runtimeState.primary_service && eventPlan?.selected_package) {
             runtimeState.primary_service = eventPlan.selected_package;
@@ -457,14 +447,10 @@ export async function processConversation(conversation_id, message_id = null, op
             runtimeState.active_roles = activeRoles.map(r => r.role_id);
         }
 
-        // Fix: Replace V1 legacy missingFieldsEngine with V2 partyMissingFieldsEngine
-        let rolesToEvaluate = activeRoleKeys;
-        if (rolesToEvaluate.length === 0 && runtimeState.primary_service) {
-            // Fallback mapper for primary_service string -> role array
-            rolesToEvaluate = [`role_${runtimeState.primary_service}`];
-        }
+        // Fix: Use V2 dynamic partyMissingFieldsEngine that reads full DB objects
+        let rolesToEvaluateObjects = activeRoles || [];
         
-        const missingMetrics = computeMissingPartyFields(partyDraft, rolesToEvaluate);
+        const missingMetrics = computeMissingPartyFields(partyDraft, rolesToEvaluateObjects);
 
         const plannerContext = {
             runtimeState,
@@ -855,11 +841,36 @@ export async function processConversation(conversation_id, message_id = null, op
         }
 
         // Event drafts — mutation-aware
-        const { data: existingDraftRow } = await supabase
-            .from('ai_event_drafts')
-            .select('id, draft_type, structured_data_json, missing_fields_json, draft_status, services, version')
-            .eq('conversation_id', conversation_id)
-            .maybeSingle();
+        const targetDate = analysis.event_draft?.structured_data?.data_eveniment || analysis.event_draft?.structured_data?.date || analysis.event_draft?.structured_data?.data_evenimentului;
+        const targetTime = analysis.event_draft?.structured_data?.ora_eveniment || analysis.event_draft?.structured_data?.time || analysis.event_draft?.structured_data?.ora_evenimentului;
+
+        let existingDraftRow = null;
+        const colList = 'id, status, servicii_cerute, data_eveniment, locatie, nume_sarbatorit, ora_eveniment';
+
+        if (targetDate) {
+            let dq = supabase
+                .from('ai_client_events')
+                .select(colList)
+                .eq('client_id', clientId)
+                .eq('data_eveniment', targetDate);
+            
+            if (targetTime) dq = dq.eq('ora_eveniment', targetTime);
+            const { data } = await dq.maybeSingle();
+            existingDraftRow = data;
+        }
+
+        if (!existingDraftRow) {
+            // Fallback: find the most recent 'draft' for this client
+            const { data } = await supabase
+                .from('ai_client_events')
+                .select(colList)
+                .eq('client_id', clientId)
+                .eq('status', 'draft')
+                .order('updated_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            existingDraftRow = data;
+        }
 
         // Detect mutation
         const mutation = detectEventMutation(analysis, existingDraftRow);
@@ -871,7 +882,7 @@ export async function processConversation(conversation_id, message_id = null, op
             
             const intentObj = analysis.mutation_intent || { 
                 mutation: mutation.mutation_type !== 'no_mutation' ? { 
-                    target_event_id: analysis.target_event_id || null, 
+                    target_id: analysis.target_id || null, 
                     field: mutation.changed_field || mutation.mutation_type, 
                     new_value: mutation.new_value 
                 } : null,
@@ -892,6 +903,7 @@ export async function processConversation(conversation_id, message_id = null, op
         }
 
         if (mutation.mutation_type !== 'no_mutation') {
+            const { applyEventMutation } = await import('../events/applyEventMutation.mjs');
             mutationResult = await applyEventMutation({
                 mutation,
                 existingDraft: existingDraftRow,
@@ -904,15 +916,21 @@ export async function processConversation(conversation_id, message_id = null, op
             // No mutation detected — simple upsert (backwards compatible)
             const draftPayload = {
                 client_id: clientId,
-                draft_type: eventDraft.draft_type,
-                structured_data_json: eventDraft.structured_data,
-                missing_fields_json: eventDraft.missing_fields,
+                status: existingDraftRow?.status || 'draft', // Preserve status
+                data_eveniment: eventDraft.structured_data?.data_eveniment || eventDraft.structured_data?.date,
+                ora_eveniment: eventDraft.structured_data?.ora_eveniment || eventDraft.structured_data?.time,
+                locatie: eventDraft.structured_data?.locatie || eventDraft.structured_data?.location,
+                nume_sarbatorit: eventDraft.structured_data?.nume_sarbatorit || eventDraft.structured_data?.celebrant,
+                servicii_cerute: [
+                    ...(Array.isArray(existingDraftRow?.servicii_cerute) ? existingDraftRow.servicii_cerute : Object.values(existingDraftRow?.servicii_cerute || {})).filter(s => s.role_key !== 'METADATA'),
+                    { role_key: 'METADATA', role_title: 'Metadata AI', payload: eventDraft.structured_data, missing_fields: eventDraft.missing_fields }
+                ],
                 updated_at: new Date().toISOString()
             };
             if (existingDraftRow) {
-                await supabase.from('ai_event_drafts').update(draftPayload).eq('id', existingDraftRow.id);
+                await supabase.from('ai_client_events').update(draftPayload).eq('id', existingDraftRow.id);
             } else {
-                await supabase.from('ai_event_drafts').insert({ conversation_id, ...draftPayload });
+                await supabase.from('ai_client_events').insert({ ...draftPayload });
             }
         }
 
@@ -966,32 +984,55 @@ export async function processConversation(conversation_id, message_id = null, op
         // ── Phase 3: Synchronize Party Draft Post Action ──
         if (toolAction.name === 'update_event_plan' && partyDraft) {
             try {
-                let finalRolesToEvaluate = rolesToEvaluate;
-                if (serviceData && serviceData.selected_services && serviceData.selected_services.length > 0) {
-                    const CATALOG_TO_ROLE = {
-                        'animator': 'role_animatie',
-                        'ursitoare': 'role_ursitoare',
-                        'vata_zahar': 'role_vata_de_zahar',
-                        'popcorn': 'role_popcorn',
-                        'arcada_baloane': 'role_arcada_fara_suport',
-                        'arcada_suport': 'role_arcada_pe_suport',
-                        'arcada_exterior': 'role_arcada_pe_suport', // rough map
-                        'suport_arcada_baloane': 'role_arcada_pe_suport',
-                        'cifre_volumetrice': 'role_arcada_cu_cifre_volumetrice',
-                        'mos_craciun': 'role_mos_craciun',
-                        'parfumerie': 'role_parfumerie',
-                        'gheata_carbonica': 'role_gheata_carbonica'
-                    };
-                    const detectedRoles = serviceData.selected_services
-                        .map(s => CATALOG_TO_ROLE[s] || `role_${s}`);
-                    finalRolesToEvaluate = [...new Set([...rolesToEvaluate, ...detectedRoles])];
-                }
+                let finalRolesToEvaluateObjects = rolesToEvaluateObjects;
+                // No longer mixing strings with objects. Draft updates strictly follow KB definitions.
 
-                partyDraft = updatePartyDraftFromMessage(partyDraft, toolAction.arguments, finalRolesToEvaluate);
-                const p3Eval = computeMissingPartyFields(partyDraft, finalRolesToEvaluate);
+                partyDraft = updatePartyDraftFromMessage(partyDraft, toolAction.arguments, finalRolesToEvaluateObjects);
+                const p3Eval = computeMissingPartyFields(partyDraft, finalRolesToEvaluateObjects);
                 
                 partyDraft.comercial.campuri_obligatorii_lipsa = p3Eval.missingForBooking;
                 partyDraft.comercial.gata_pentru_oferta = p3Eval.isReadyForQuote;
+
+                // ── Splitting / Partial Promotion Logic ──
+                if (p3Eval.hasBirthDate && p3Eval.roleCompliance.length > 0) {
+                    const readyRoleEntries = p3Eval.roleCompliance.filter(r => r.isComplete);
+                    const unreadyRoleEntries = p3Eval.roleCompliance.filter(r => !r.isComplete);
+
+                    // If we have at least one ready role and one unready role, we SPLIT
+                    if (readyRoleEntries.length > 0 && unreadyRoleEntries.length > 0) {
+                        for (const readyRole of readyRoleEntries) {
+                            console.log(`[Phase3 Splitting] Moving complete role ${readyRole.roleId} to Curat...`);
+                            
+                            // 1. Create a NEW active event for this role
+                            const newActiveEvent = {
+                                client_id: clientId,
+                                status: 'confirmed',
+                                data_eveniment: partyDraft.data_eveniment || partyDraft.date,
+                                ora_eveniment: partyDraft.ora_eveniment || partyDraft.time,
+                                locatie: partyDraft.locatie || partyDraft.location,
+                                nume_sarbatorit: partyDraft.nume_sarbatorit || partyDraft.celebrant,
+                                servicii_cerute: [
+                                    { role_key: readyRole.roleId, role_title: readyRole.roleId },
+                                    { role_key: 'METADATA', role_title: 'Metadata AI', payload: partyDraft.structured_data_json }
+                                ]
+                            };
+                            await supabase.from('ai_client_events').insert(newActiveEvent);
+
+                            // 2. Remove this role from the original draft
+                            // (We skip actual removal from servicii_cerute for now to avoid breaking the LLM context, 
+                            // but we mark it as 'processed_in_active' in the draft metadata)
+                            if (!partyDraft.metadata) partyDraft.metadata = {};
+                            if (!partyDraft.metadata.processed_roles) partyDraft.metadata.processed_roles = [];
+                            partyDraft.metadata.processed_roles.push(readyRole.roleId);
+                        }
+                    } else if (p3Eval.isFullyComplete && partyDraft.draft_status === 'discovery') {
+                        // All roles ready + birth date -> promote the whole draft
+                        partyDraft.draft_status = 'confirmed';
+                        console.log(`[Phase3 PartyBuilder] Auto-confirmed draft ${conversation_id} (All roles complete)`);
+                    }
+                } else if (p3Eval.isReadyForQuote && partyDraft.draft_status === 'discovery') {
+                    partyDraft.draft_status = 'ready_for_review';
+                }
                 
                 const saveSuccess = await savePartyDraft(partyDraft);
                 if (saveSuccess) {
@@ -1236,7 +1277,7 @@ export async function processConversation(conversation_id, message_id = null, op
         if (hybridPackageReply) {
             suggestedReply = hybridPackageReply;
             composerResult = { reply: hybridPackageReply, replyStyle: 'warm_sales', composerUsed: true, specificity: 'kb_packages', serviceDetectionStatus: 'confirmed' };
-            console.log(`[Pipeline] Using hybrid package reply (${hybridPackageReply.length} chars), skipping general composer`);
+                console.log(`[Pipeline] Using hybrid package reply (${hybridPackageReply.length} chars), skipping general composer`);
         } else if ((kbGroundingContext || latestQuote) && (eligibility.eligible || !decision.needs_human_review)) {
             const t_comp_start = Date.now();
 
@@ -1435,9 +1476,9 @@ export async function processConversation(conversation_id, message_id = null, op
                     const { auditReplyV2 } = await import('../agent/replyAuditorV2.mjs');
                     console.log(`[Pipeline] Running strict LLM AuditV2 on reply...`);
                     // Fallback reference context 
-                    let rvcActiveService = null; try{ if(typeof runtimeState !== 'undefined') rvcActiveService = runtimeState?.primary_service; }catch(e){}
-                    let rvcDraft = null; try{ if(typeof partyDraft !== 'undefined') rvcDraft = partyDraft; }catch(e){}
-                    let rvcNba = null; try{ if(typeof nextTarget !== 'undefined') rvcNba = nextTarget?.action; }catch(e){}
+                    let rvcActiveService = null; try{ if(typeof runtimeState !== 'undefined') rvcActiveService = runtimeState?.primary_service; }catch(error_){}
+                    let rvcDraft = null; try{ if(typeof partyDraft !== 'undefined') rvcDraft = partyDraft; }catch(error_){}
+                    let rvcNba = null; try{ if(typeof nextTarget !== 'undefined') rvcNba = nextTarget?.action; }catch(error_){}
     
                     const auditRes = await auditReplyV2({
                         replyText: suggestedReply,
@@ -1648,8 +1689,8 @@ export async function processConversation(conversation_id, message_id = null, op
         const t_total_ms = Date.now() - t_pipeline_start;
         console.log(`[Pipeline] Done ${conversation_id}. Services: ${serviceData.selected_services.length}, Entity: ${entityMemory.entity_type}, Reply: ${replyStatus}, Eligibility: ${eligibility.reason}, Quality: ${replyQuality.reply_quality_label}(${replyQuality.reply_quality_score}), SvcDetection: ${serviceConfidence.service_detection_status}, Timing: analysis=${t_llm_ms}ms composer=${t_composer_ms}ms total=${t_total_ms}ms`);
 
-    } catch (error) {
-        console.error(`[Pipeline] Critical failure:`, error);
+    } catch (error_) {
+        console.error(`[Pipeline] Critical failure:`, error_);
     } finally {
         releaseConversationLock(conversation_id);
     }

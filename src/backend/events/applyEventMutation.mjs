@@ -38,18 +38,40 @@ export async function applyEventMutation({
         return { applied: false, reason: 'no_mutation' };
     }
 
-    const beforeState = existingDraft?.structured_data_json || {};
-    const beforeServices = existingDraft?.services || [];
-    const beforeStatus = existingDraft?.draft_status || 'active';
+    // Map ai_client_events schema
+    const rawExistingSvc = existingDraft?.servicii_cerute || [];
+    const normalizedExistingSvc = Array.isArray(rawExistingSvc) ? rawExistingSvc : Object.values(rawExistingSvc);
+
+    const beforeState = {
+        data_eveniment: existingDraft?.data_eveniment,
+        locatie: existingDraft?.locatie,
+        nume_sarbatorit: existingDraft?.nume_sarbatorit,
+        ora_eveniment: existingDraft?.ora_eveniment,
+        servicii_cerute: normalizedExistingSvc,
+        exclusions: existingDraft?.structured_data_json?.exclusions || []
+    };
+    
+    // Services in ai_client_events are role keys in servicii_cerute
+    const beforeServices = normalizedExistingSvc.map(s => s.role_key || s.ID_Vizual).filter(Boolean);
+    const beforeStatus = existingDraft?.status || 'active';
 
     // ── Build new state ──
     let afterState = { ...beforeState };
     let afterServices = [...beforeServices];
     let afterStatus = beforeStatus;
 
+    const llmStructured = newDraftData.structured_data || {};
+    const llmExclusions = newDraftData.exclusions || [];
+
     switch (mutationType) {
         case 'create_event':
-            afterState = newDraftData.structured_data || {};
+            afterState = {
+                data_eveniment: llmStructured.data_eveniment || llmStructured.data_eveniment || llmStructured.date,
+                locatie: llmStructured.locatie || llmStructured.locatie || llmStructured.location,
+                nume_sarbatorit: llmStructured.nume_sarbatorit || llmStructured.celebrant,
+                ora_eveniment: llmStructured.ora_eveniment || llmStructured.ora_eveniment || llmStructured.time,
+                exclusions: llmExclusions
+            };
             afterServices = newServices || [];
             afterStatus = 'active';
             break;
@@ -59,112 +81,104 @@ export async function applyEventMutation({
             break;
 
         case 'reactivate_event':
-            afterState = { ...beforeState, ...(newDraftData.structured_data || {}) };
-            afterServices = newServices.length > 0 ? newServices : beforeServices;
             afterStatus = 'active';
             break;
 
-        case 'change_date':
-        case 'change_location':
-        case 'change_time':
-        case 'change_guest_count':
-        case 'update_event':
-            // Merge new fields over existing
+        default:
+            // Merge fields
             for (const change of (mutation.field_changes || [])) {
                 if (change.new !== null && change.new !== undefined) {
                     afterState[change.field] = change.new;
                 }
             }
-            // Also merge any new structured data from LLM
-            const newStructured = newDraftData.structured_data || {};
-            for (const [key, val] of Object.entries(newStructured)) {
+            // Merge any new structured data from LLM
+            for (const [key, val] of Object.entries(llmStructured)) {
                 if (val && val !== 'null') {
                     afterState[key] = val;
                 }
             }
-            afterServices = newServices.length > 0 ? newServices : beforeServices;
-            break;
+            // Merge exclusions
+            if (llmExclusions.length > 0) {
+                 const current = afterState.exclusions || [];
+                 afterState.exclusions = [...new Set([...current, ...llmExclusions])];
+            }
 
-        case 'add_service':
-            afterServices = [...new Set([...beforeServices, ...newServices])];
-            break;
-
-        case 'remove_service':
-            afterServices = beforeServices.filter(s => !mutation.removed_services.includes(s));
-            break;
-
-        case 'replace_service':
-            afterServices = beforeServices
-                .filter(s => !mutation.removed_services.includes(s))
-                .concat(mutation.added_services || []);
-            afterServices = [...new Set(afterServices)];
-            break;
-
-        case 'confirm_event':
-            afterStatus = 'confirmed';
-            break;
-
-        default:
-            // Generic: merge new data
-            afterState = { ...beforeState, ...(newDraftData.structured_data || {}) };
-            afterServices = newServices.length > 0 ? newServices : beforeServices;
+            if (newServices && newServices.length > 0) {
+                afterServices = newServices;
+            }
             break;
     }
 
-    // ── Compute delta ──
-    const delta = {};
-    for (const key of new Set([...Object.keys(beforeState), ...Object.keys(afterState)])) {
-        if (JSON.stringify(beforeState[key]) !== JSON.stringify(afterState[key])) {
-            delta[key] = { before: beforeState[key] || null, after: afterState[key] || null };
-        }
-    }
-    // Service delta
-    const addedSvcs = afterServices.filter(s => !beforeServices.includes(s));
-    const removedSvcs = beforeServices.filter(s => !afterServices.includes(s));
-    if (addedSvcs.length > 0) delta._added_services = addedSvcs;
-    if (removedSvcs.length > 0) delta._removed_services = removedSvcs;
-    if (afterStatus !== beforeStatus) delta._status = { before: beforeStatus, after: afterStatus };
-
-    // ── Persist draft ──
-    const draftPayload = {
+    // ── Prepare Payload for ai_client_events ──
+    const payload = {
         client_id: clientId,
-        draft_type: newDraftData.draft_type || existingDraft?.draft_type || 'petrecere_standard',
-        structured_data_json: afterState,
-        missing_fields_json: newDraftData.missing_fields || [],
-        services: afterServices,
+        status: afterStatus,
+        data_eveniment: llmStructured.data_eveniment || llmStructured.date,
+        locatie: llmStructured.locatie || llmStructured.location,
+        nume_sarbatorit: llmStructured.nume_sarbatorit || llmStructured.celebrant,
+        ora_eveniment: llmStructured.ora_eveniment || llmStructured.time,
         updated_at: new Date().toISOString()
     };
+
+    // --- Conditional Promotion Logic (Draft -> Active) ---
+    if (afterStatus === 'draft' || !existingDraft) {
+        const { computeMissingPartyFields } = await import('../party/partyMissingFieldsEngine.mjs');
+        // We use afterState but we must be careful since computeMissingPartyFields expects structured_data_json
+        const { isFullyComplete } = computeMissingPartyFields({ structured_data_json: afterState }, newServices || []);
+        
+        if (isFullyComplete) {
+            payload.status = 'confirmed';
+            console.log(`[Mutation] Event ${existingDraft?.id || 'NEW'} promoted to CONFIRMED (Fully Complete)`);
+        } else {
+            payload.status = 'draft';
+        }
+    }
+
+    // Prepare servicii_cerute (array of objects)
+    const existingSvcObjects = Array.isArray(existingDraft?.servicii_cerute) ? existingDraft?.servicii_cerute : Object.values(existingDraft?.servicii_cerute || {});
+    const newSvcObjects = (newServices || []).map(key => {
+        const existing = existingSvcObjects.find(s => s.role_key === key);
+        return existing || { role_key: key, role_title: key };
+    });
+
+    // Add METADATA role to store structured data that doesn't fit in flat columns
+    // This allows the frontend to still see birth_date, exclusions, etc.
+    const metadataRole = {
+        role_key: 'METADATA',
+        role_title: 'Metadata AI',
+        payload: afterState,
+        missing_fields: [] // Will be filled later if needed
+    };
+    
+    payload.servicii_cerute = [...newSvcObjects, metadataRole];
 
     let draftId = existingDraft?.id;
 
     if (existingDraft) {
         // Update existing
         const { error } = await supabase
-            .from('ai_event_drafts')
-            .update(draftPayload)
+            .from('ai_client_events')
+            .update(payload)
             .eq('id', existingDraft.id);
-        if (error) console.error('[Mutation] Draft update error:', error.message);
+        if (error) console.error('[Mutation] Event update error:', error.message);
 
-        // Update status if changed
+        // Update status if changed (this part is redundant but kept for mutation auditing context)
         if (afterStatus !== beforeStatus) {
-            await updateDraftStatus(
-                existingDraft.id,
-                afterStatus,
-                'ai',
-                mutationType === 'cancel_event' ? mutation.mutation_reason : null
-            );
+            await updateDraftStatus(existingDraft.id, afterStatus, 'ai');
         }
 
-        // Increment version
-        await incrementDraftVersion(existingDraft.id, existingDraft.version);
+        // DISABLED: version column does not exist
+        // await incrementDraftVersion(existingDraft.id, existingDraft.version);
     } else {
         // Insert new
         const { data: newRow, error } = await supabase
-            .from('ai_event_drafts')
-            .insert({ conversation_id: conversationId, ...draftPayload, draft_status: afterStatus })
+            .from('ai_client_events')
+            .insert({ 
+                ...payload
+            })
             .select('id')
             .single();
-        if (error) console.error('[Mutation] Draft insert error:', error.message);
+        if (error) console.error('[Mutation] Event insert error:', error.message);
         draftId = newRow?.id;
     }
 

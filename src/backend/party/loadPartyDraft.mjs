@@ -12,19 +12,44 @@ export async function loadPartyDraft(conversationId, clientId = null) {
     if (!conversationId) throw new Error("conversationId is required to load a party draft.");
 
     try {
+        // 1. Căutăm Draftul Evenimentului (ai_client_events)
         const { data, error } = await supabase
-            .from('ai_party_drafts')
+            .from('ai_client_events')
             .select('*')
-            .eq('conversation_id', conversationId)
-            .single();
+            .eq('client_id', clientId)
+            .eq('status', 'draft')
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+        if (error) {
             console.error(`[loadPartyDraft] DB Error: ${error.message}`);
             return null; // Degrade gracefully
         }
 
         if (data) {
-            return data;
+            return {
+                conversation_id: conversationId,
+                client_id: data.client_id,
+                id: data.id, 
+                draft_type: 'party',
+                draft_status: data.status || 'discovery',
+                comercial: {
+                    campuri_obligatorii_lipsa: [], // Column missing fields json does not exist
+                    gata_pentru_oferta: false,
+                    scor_lead: 0
+                },
+                structured_data_json: {
+                    date: data.data_eveniment, 
+                    location: data.locatie, 
+                    celebrant: data.nume_sarbatorit,
+                    time: data.ora_eveniment 
+                },
+                detalii_servicii: {},
+                services: (Array.isArray(data.servicii_cerute) ? data.servicii_cerute : Object.values(data.servicii_cerute || {}))
+                    .map(s => s.role_key || s.service_key || s.ID_Vizual)
+                    .filter(Boolean)
+            };
         }
 
         // Return a clean default structure if not found
@@ -32,28 +57,11 @@ export async function loadPartyDraft(conversationId, clientId = null) {
         return {
             conversation_id: conversationId,
             client_id: clientId,
-            status_dosar: 'draft',
-            stare_lead: 'lead_nou',
-            serviciu_principal: null,
-            servicii_active: [],
-            pachet_selectat: null,
-            date_generale: {},
-            detalii_servicii: {},
-            facturare: {},
+            draft_type: 'party',
+            draft_status: 'discovery',
             comercial: {
-                roluri_active: [],
                 campuri_obligatorii_lipsa: [],
                 gata_pentru_oferta: false,
-                scor_lead: 0,
-                temperatura_lead: 'cold',
-                urmatoarea_actiune: null,
-                obiectiv_curent: null
-            },
-            operational: {
-                operator_alocat: null,
-                necesita_interventie_umana: false,
-                motiv_escaladare: null,
-                follow_up_programat_pentru: null,
                 preluare_umana_activa: false
             },
             istoric_note: []
