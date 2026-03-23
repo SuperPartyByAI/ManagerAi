@@ -61,6 +61,23 @@ export async function GET() {
             if (data) cleanNotebooksRaw.push(...data);
         }
         
+        // 3.5. Fetch Event Drafts for these clients
+        const eventDraftsRaw: any[] = [];
+        for (let i = 0; i < uniqueClientIds.length; i += 200) {
+            const chunk = uniqueClientIds.slice(i, i + 200);
+            const { data } = await supabase.from('ai_client_events')
+               .select('id, client_id, status, servicii_cerute, data_eveniment, locatie, ora_eveniment, event_short_id, ocazie, buget_estimat')
+               .in('client_id', chunk);
+            if (data) eventDraftsRaw.push(...data);
+        }
+        
+        const draftMap = new Map<string, any[]>();
+        for (const d of eventDraftsRaw) {
+             const drafts = draftMap.get(d.client_id) || [];
+             drafts.push(d);
+             draftMap.set(d.client_id, drafts);
+        }
+        
         const cleanNotebookMap = new Map<string, any>();
         for (const n of cleanNotebooksRaw) {
              cleanNotebookMap.set(`${n.phone_number}|${n.wa_number}`, n.clean_notebook);
@@ -123,6 +140,7 @@ export async function GET() {
                            template_key: 'Live Chat',
                            // Returneaza clean_notebook JSON, nu SLOT_U0QR
                            extracted_data: cleanNotebookData, 
+                           event_drafts: draftMap.get(c.id) || [],
                            avatar_url: c.avatar_url,
                            brand_key: resolvedBrand,
                            last_message_at: lastMessageMap.get(cid) || null
