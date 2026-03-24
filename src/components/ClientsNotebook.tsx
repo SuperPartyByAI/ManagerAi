@@ -424,7 +424,7 @@ export default function ClientsNotebook() {
                         <div style={{ marginTop: "20px", background: "rgba(245,158,11,0.05)", borderRadius: "12px", border: "1px solid rgba(245,158,11,0.3)", padding: "20px" }}>
                           <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#fcd34d", margin: "0 0 12px 0", textTransform: "uppercase" }}>🚧 Discuții Deschise (Ciorne Incomplete)</h4>
                           {(() => {
-                              const localDrafts = (client.event_drafts || []).filter((d: any) => d.status !== 'confirmed' && d.status !== 'booked');
+                              const localDrafts = (client.event_drafts || []).filter((d: any) => !['active', 'completed', 'confirmed', 'booked'].includes(d.status));
                               if (localDrafts.length === 0) {
                                   return <div style={{ color: "#9ca3af", fontSize: "14px" }}>Nu există nicio ciornă activă pentru acest client.</div>;
                               }
@@ -494,7 +494,7 @@ export default function ClientsNotebook() {
                         <div style={{ marginTop: "20px", background: "rgba(16,185,129,0.05)", borderRadius: "12px", border: "1px solid rgba(16,185,129,0.3)", padding: "20px" }}>
                           <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#6ee7b7", margin: "0 0 12px 0", textTransform: "uppercase" }}>✅ Evenimente Rezervate Final</h4>
                           {(() => {
-                              const localConf = (client.event_drafts || []).filter((d: any) => d.status === 'confirmed' || d.status === 'booked');
+                              const localConf = (client.event_drafts || []).filter((d: any) => ['active', 'completed', 'confirmed', 'booked'].includes(d.status));
                               if (localConf.length === 0) {
                                   return <div style={{ color: "#9ca3af", fontSize: "14px" }}>Nu există nicio rezervare clară (închisă) pentru acest client.</div>;
                               }
