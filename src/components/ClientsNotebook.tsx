@@ -8,6 +8,7 @@ interface ClientNotebook {
   wa_number: string;
   brand_key: string | null;
   clean_notebook: any;
+  event_drafts: any[];
   summary_updated_at: string;
   created_at: string;
 }
@@ -20,17 +21,33 @@ function normalizeNotebook(nb: any): Record<string, string> {
 }
 
 const FIELD_LABELS: Record<string, string> = {
-  data_eveniment: "📅 Data evenimentului",
-  ora_eveniment: "🕐 Ora",
+  data_eveniment: "📅 Data eveniment (vechi)",
+  data_evenimentului: "📅 Data evenimentului",
+  ora_eveniment: "🕐 Ora (vechi)",
+  ora_evenimentului: "🕐 Ora",
   serviciu: "🎪 Serviciu",
   personaj: "🦸 Personaj",
-  locatie: "📍 Locație",
+  locatie: "📍 Locație (vechi)",
+  localitate: "🏙️ Localitate",
+  locatie_eveniment: "📍 Locație Eveniment",
   pret_discutat: "💰 Preț discutat",
-  nr_copii: "👶 Nr. copii",
-  varsta_copil: "🎂 Vârsta copilului",
-  metoda_plata: "💳 Metodă plată",
+  nr_copii: "👶 Nr. copii (vechi)",
+  numar_copii: "👶 Nr. copii",
+  varsta_copil: "🎂 Vârsta copil (vechi)",
+  varsta_sarbatoritului: "🎂 Vârsta sărbătoritului",
+  metoda_plata: "💳 Metodă plată (vechi)",
+  metoda_de_plata: "💳 Metodă plată",
+  nr_invitati: "👥 Nr. invitați (vechi)",
+  numar_invitati: "👥 Nr. invitați",
   status_confirmat: "✅ Status",
   observatii: "📝 Observații",
+  // Mapări pentru Vertex AI (internal keys)
+  date: "📅 Data (AI)",
+  location: "📍 Locație (AI)",
+  duration: "⏱️ Durată (AI)",
+  role_title: "🎪 Serviciu (AI)",
+  data_nastere_sarbatorit: "🎂 Data naștere sărbătorit",
+  exclusions: "🚫 Excluziuni / Fără confetti",
 };
 
 export default function ClientsNotebook() {
@@ -39,6 +56,8 @@ export default function ClientsNotebook() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [viewAiMemory, setViewAiMemory] = useState<string | null>(null);
   const [viewingBrain, setViewingBrain] = useState<string | null>(null);
+  const [viewingDrafts, setViewingDrafts] = useState<string | null>(null);
+  const [viewingConfirmed, setViewingConfirmed] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [editData, setEditData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -48,10 +67,15 @@ export default function ClientsNotebook() {
   const [chatHistory, setChatHistory] = useState<any[] | null>(null);
 
   const fetchClients = useCallback(async () => {
+    console.log("[ClientsNotebook] Încep fetchClients...");
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/client-notebooks?_t=" + Date.now()); // Sursa extinsă: toate QR-urile!
+      const url = "/api/admin/client-notebooks?_t=" + Date.now();
+      console.log("[ClientsNotebook] Fetching from:", url);
+      const res = await fetch(url);
+      console.log("[ClientsNotebook] Status răspuns:", res.status);
       const data = await res.json();
+      console.log("[ClientsNotebook] Date primite:", data.notebooks?.length || 0, "notebooks");
       if (data.notebooks && Array.isArray(data.notebooks)) {
         const mapped = data.notebooks.map((n: any) => ({
            id: n.client_id,
@@ -59,18 +83,22 @@ export default function ClientsNotebook() {
            wa_number: n.brand_key || '',
            brand_key: n.brand_key,
            clean_notebook: n.extracted_data || {},
+           event_drafts: n.event_drafts || [],
            summary_updated_at: n.last_message_at || new Date().toISOString(),
            created_at: n.last_message_at || new Date().toISOString(),
            alias: n.alias
         }));
         setClients(mapped);
       } else {
+        console.warn("[ClientsNotebook] Format invalid de date:", data);
         setClients([]);
       }
-    } catch {
+    } catch (err: any) {
+      console.error("[ClientsNotebook] Eroare la fetch:", err.message);
       setClients([]);
     } finally {
       setLoading(false);
+      console.log("[ClientsNotebook] Gata fetchClients.");
     }
   }, []);
 
@@ -80,7 +108,9 @@ export default function ClientsNotebook() {
   // Când schimbăm clientul deschis, încărcăm chat-ul automat
   useEffect(() => {
      setChatHistory(null);
-     setViewingBrain(null); // Reset brain view on new open
+     setViewingBrain(null); 
+     setViewingDrafts(null);
+     setViewingConfirmed(null);
      if (expanded) {
          fetch(`/api/admin/crm/clients/${expanded}?_t=${Date.now()}`)
              .then(res => res.json())
@@ -241,7 +271,7 @@ export default function ClientsNotebook() {
                       {/* Action buttons */}
                       <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
                         {!isEditing ? (
-                          <div style={{ display: "flex", gap: "10px" }}>
+                          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                             <button
                               onClick={e => { e.stopPropagation(); startEdit(client); }}
                               style={{
@@ -250,15 +280,44 @@ export default function ClientsNotebook() {
                                 cursor: "pointer", fontSize: "13px"
                               }}
                             >✏️ Editează</button>
-                            <button
-                              onClick={e => { e.stopPropagation(); setViewingBrain(prev => prev === client.id ? null : client.id); }}
-                              style={{
-                                background: viewingBrain === client.id ? "rgba(168,85,247,0.4)" : "rgba(168,85,247,0.2)",
-                                border: "1px solid rgba(168,85,247,0.5)",
-                                color: "#d8b4fe", borderRadius: "8px", padding: "6px 14px",
-                                cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px"
-                              }}
-                            >{viewingBrain === client.id ? "👀 Vezi Istoric Chat" : "🧠 Adevăr AI"}</button>
+                            
+                            {(() => {
+                                const localDrafts = (client.event_drafts || []).filter((d: any) => d.status !== 'confirmed' && d.status !== 'booked');
+                                const localConf = (client.event_drafts || []).filter((d: any) => d.status === 'confirmed' || d.status === 'booked');
+                                return (
+                                  <>
+                                    <button
+                                      onClick={e => { e.stopPropagation(); setViewingDrafts(null); setViewingConfirmed(null); setViewingBrain(prev => prev === client.id ? null : client.id); }}
+                                      style={{
+                                        background: viewingBrain === client.id ? "rgba(168,85,247,0.4)" : "rgba(168,85,247,0.2)",
+                                        border: "1px solid rgba(168,85,247,0.5)",
+                                        color: "#d8b4fe", borderRadius: "8px", padding: "6px 14px",
+                                        cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px"
+                                      }}
+                                    >{viewingBrain === client.id ? "👀 Vezi Istoric Chat" : "🧠 Adevăr AI"}</button>
+                                    
+                                    <button
+                                      onClick={e => { e.stopPropagation(); setViewingBrain(null); setViewingConfirmed(null); setViewingDrafts(prev => prev === client.id ? null : client.id); }}
+                                      style={{
+                                        background: viewingDrafts === client.id ? "rgba(245,158,11,0.4)" : "rgba(245,158,11,0.15)",
+                                        border: "1px solid rgba(245,158,11,0.5)",
+                                        color: "#fcd34d", borderRadius: "8px", padding: "6px 14px",
+                                        cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px"
+                                      }}
+                                    >{viewingDrafts === client.id ? "👀 Vezi Istoric Chat" : `🚧 Ciorne (${localDrafts.length})`}</button>
+                                    
+                                    <button
+                                      onClick={e => { e.stopPropagation(); setViewingBrain(null); setViewingDrafts(null); setViewingConfirmed(prev => prev === client.id ? null : client.id); }}
+                                      style={{
+                                        background: viewingConfirmed === client.id ? "rgba(16,185,129,0.4)" : "rgba(16,185,129,0.15)",
+                                        border: "1px solid rgba(16,185,129,0.5)",
+                                        color: "#6ee7b7", borderRadius: "8px", padding: "6px 14px",
+                                        cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px"
+                                      }}
+                                    >{viewingConfirmed === client.id ? "👀 Vezi Istoric Chat" : `✅ Confirmate (${localConf.length})`}</button>
+                                  </>
+                                );
+                            })()}
                           </div>
                         ) : (
                           <>
@@ -359,6 +418,146 @@ export default function ClientsNotebook() {
                                   )}
                                 </>
                               );
+                          })()}
+                        </div>
+                      ) : viewingDrafts === client.id ? (
+                        <div style={{ marginTop: "20px", background: "rgba(245,158,11,0.05)", borderRadius: "12px", border: "1px solid rgba(245,158,11,0.3)", padding: "20px" }}>
+                          <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#fcd34d", margin: "0 0 12px 0", textTransform: "uppercase" }}>🚧 Discuții Deschise (Ciorne Incomplete)</h4>
+                          {(() => {
+                              const localDrafts = (client.event_drafts || []).filter((d: any) => d.status !== 'confirmed' && d.status !== 'booked');
+                              if (localDrafts.length === 0) {
+                                  return <div style={{ color: "#9ca3af", fontSize: "14px" }}>Nu există nicio ciornă activă pentru acest client.</div>;
+                              }
+                              return localDrafts.map((draft, idx) => {
+                                  // Extract from METADATA role if available
+                                  const metadataRole = (draft.servicii_cerute || []).find((s: any) => s.role_key === 'METADATA');
+                                  const metadataPayload = metadataRole?.payload || {};
+
+                                  // Combine flat columns with metadata
+                                  const viewFields: Record<string, any> = {
+                                      data_eveniment: draft.data_eveniment,
+                                      ora_eveniment: draft.ora_eveniment,
+                                      locatie: draft.locatie,
+                                      nume_sarbatorit: draft.nume_sarbatorit,
+                                      ...metadataPayload
+                                  };
+
+                                  // Deduplicate semantic overlaps (e.g. date vs data_eveniment)
+                                  if (viewFields.date && viewFields.data_eveniment) delete viewFields.data_eveniment;
+                                  if (viewFields.location && viewFields.locatie) delete viewFields.locatie;
+                                  if (viewFields.time && viewFields.ora_eveniment) delete viewFields.ora_eveniment;
+                                  if (viewFields.celebrant && viewFields.nume_sarbatorit) delete viewFields.nume_sarbatorit;
+                                  if (viewFields['Nume sarbatorit'] && viewFields.nume_sarbatorit) delete viewFields.nume_sarbatorit;
+                                  if (viewFields['Locatie'] && viewFields.locatie) delete viewFields.locatie;
+                                  if (viewFields['Locatie'] && viewFields.location) delete viewFields.location;
+                                  if (viewFields['Data'] && viewFields.data_eveniment) delete viewFields.data_eveniment;
+                                  
+                                  // Clean falsy values
+                                  Object.keys(viewFields).forEach(k => {
+                                      if (!viewFields[k]) delete viewFields[k];
+                                  });
+                                  
+                                  const roles = (draft.servicii_cerute || []).filter((s: any) => s.role_key !== 'METADATA');
+                                  
+                                  return (
+                                     <div key={draft.id} style={{ marginBottom: "16px", background: "rgba(0,0,0,0.3)", padding: "14px", borderRadius: "8px", border: "1px solid rgba(245,158,11,0.2)" }}>
+                                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+                                            <span style={{ color: "#fde68a", fontWeight: "bold" }}>Draft #{idx + 1}</span>
+                                            <span style={{ color: "#fbbf24", fontSize: "12px", background: "rgba(0,0,0,0.4)", padding: "2px 8px", borderRadius: "4px" }}>{draft.status || 'draft'}</span>
+                                         </div>
+                                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                             {Object.entries(viewFields).filter(([_, v]) => v).map(([k, v]) => (
+                                                <div key={k}>
+                                                    <div style={{ fontSize: "11px", color: "#fbbf24" }}>{FIELD_LABELS[k] || k.replace(/_/g, ' ')}</div>
+                                                    <div style={{ fontSize: "13px", color: "#fef3c7" }}>
+                                                        {Array.isArray(v) ? v.join(', ') : String(v)}
+                                                    </div>
+                                                </div>
+                                             ))}
+                                         </div>
+                                         {roles.length > 0 && (
+                                             <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                                                <div style={{ fontSize: "12px", color: "#fcd34d", marginBottom: "8px" }}>📦 Roluri active:</div>
+                                                {roles.map((r: any) => (
+                                                    <div key={r.role_key} style={{ fontSize: "13px", color: "#fef3c7", marginLeft: "10px", marginBottom: "4px" }}>
+                                                        • <b>{r.role_title || r.role_key}</b>
+                                                    </div>
+                                                ))}
+                                             </div>
+                                         )}
+                                     </div>
+                                  );
+                              });
+                          })()}
+                        </div>
+                      ) : viewingConfirmed === client.id ? (
+                        <div style={{ marginTop: "20px", background: "rgba(16,185,129,0.05)", borderRadius: "12px", border: "1px solid rgba(16,185,129,0.3)", padding: "20px" }}>
+                          <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#6ee7b7", margin: "0 0 12px 0", textTransform: "uppercase" }}>✅ Evenimente Rezervate Final</h4>
+                          {(() => {
+                              const localConf = (client.event_drafts || []).filter((d: any) => d.status === 'confirmed' || d.status === 'booked');
+                              if (localConf.length === 0) {
+                                  return <div style={{ color: "#9ca3af", fontSize: "14px" }}>Nu există nicio rezervare clară (închisă) pentru acest client.</div>;
+                              }
+                              return localConf.map((draft, idx) => {
+                                  // Extract from METADATA role if available
+                                  const metadataRole = (draft.servicii_cerute || []).find((s: any) => s.role_key === 'METADATA');
+                                  const metadataPayload = metadataRole?.payload || {};
+
+                                  // Reconstruct fields
+                                  const viewFields: Record<string, any> = {
+                                      data_eveniment: draft.data_eveniment,
+                                      ora_eveniment: draft.ora_eveniment,
+                                      locatie: draft.locatie,
+                                      nume_sarbatorit: draft.nume_sarbatorit,
+                                      ...metadataPayload
+                                  };
+
+                                  // Deduplicate semantic overlaps for confirmed view
+                                  if (viewFields.date && viewFields.data_eveniment) delete viewFields.data_eveniment;
+                                  if (viewFields.location && viewFields.locatie) delete viewFields.locatie;
+                                  if (viewFields.time && viewFields.ora_eveniment) delete viewFields.ora_eveniment;
+                                  if (viewFields.celebrant && viewFields.nume_sarbatorit) delete viewFields.nume_sarbatorit;
+                                  if (viewFields['Nume sarbatorit'] && viewFields.nume_sarbatorit) delete viewFields.nume_sarbatorit;
+                                  if (viewFields['Locatie'] && viewFields.locatie) delete viewFields.locatie;
+                                  if (viewFields['Locatie'] && viewFields.location) delete viewFields.location;
+                                  if (viewFields['Data'] && viewFields.data_eveniment) delete viewFields.data_eveniment;
+                                  
+                                  // Clean falsy values
+                                  Object.keys(viewFields).forEach(k => {
+                                      if (!viewFields[k]) delete viewFields[k];
+                                  });
+                                  
+                                  const roles = (draft.servicii_cerute || []).filter((s: any) => s.role_key !== 'METADATA');
+                                  
+                                  return (
+                                     <div key={draft.id} style={{ marginBottom: "16px", background: "rgba(0,0,0,0.3)", padding: "14px", borderRadius: "8px", border: "1px solid rgba(16,185,129,0.2)" }}>
+                                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+                                            <span style={{ color: "#a7f3d0", fontWeight: "bold" }}>Eveniment Confirmat #{idx + 1}</span>
+                                            <span style={{ color: "#6ee7b7", fontSize: "12px", background: "rgba(0,0,0,0.4)", padding: "2px 8px", borderRadius: "4px" }}>{draft.status || 'booked'}</span>
+                                         </div>
+                                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                             {Object.entries(viewFields).filter(([_, v]) => v).map(([k, v]) => (
+                                                <div key={k}>
+                                                    <div style={{ fontSize: "11px", color: "#34d399" }}>{FIELD_LABELS[k] || k.replace(/_/g, ' ')}</div>
+                                                    <div style={{ fontSize: "13px", color: "#ecfdf5" }}>
+                                                        {Array.isArray(v) ? v.join(', ') : String(v)}
+                                                    </div>
+                                                </div>
+                                             ))}
+                                         </div>
+                                         {roles.length > 0 && (
+                                             <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                                                <div style={{ fontSize: "12px", color: "#6ee7b7", marginBottom: "8px" }}>📦 Roluri Confirmate:</div>
+                                                {roles.map((r: any) => (
+                                                    <div key={r.role_key} style={{ fontSize: "13px", color: "#ecfdf5", marginLeft: "10px", marginBottom: "4px" }}>
+                                                        • <b>{r.role_title || r.role_key}</b>
+                                                    </div>
+                                                ))}
+                                             </div>
+                                         )}
+                                     </div>
+                                  );
+                              });
                           })()}
                         </div>
                       ) : chatHistory !== null ? (

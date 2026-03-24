@@ -477,7 +477,20 @@ export async function processConversation(conversation_id, message_id = null, op
         const activeNotebookContext = await getActiveNotebook(contextPack?.client_context?.client?.real_phone_e164 || 'unknown', runtimeState.primary_service);
         const notebookPromptExtra = buildNotebookPromptSection(activeNotebookContext);
 
-        const baseSystemPrompt = buildSystemPrompt(existingMemory, { eventPlan, partyDraft, goalState, contextPack, relationshipData, activeRolesText, nextBestActionGoal: nextTarget, goalDirective });
+        // --- DYNAMIC CONSTRAINT MAPPING ---
+        // We aggregate exactly what the user set in the UI to strictly override the LLM tool schema.
+        const dynamicConstraintKeys = [];
+        for (const role of rolesToEvaluateObjects) {
+            if (role.constraints?.must_collect_fields) {
+                dynamicConstraintKeys.push(...role.constraints.must_collect_fields);
+            }
+        }
+        const uniqueDynamicConstraintKeys = [...new Set(dynamicConstraintKeys)];
+
+        const baseSystemPrompt = buildSystemPrompt(existingMemory, { 
+            eventPlan, partyDraft, goalState, contextPack, relationshipData, activeRolesText, 
+            nextBestActionGoal: nextTarget, goalDirective, dynamicConstraintKeys: uniqueDynamicConstraintKeys 
+        });
         const systemPrompt = baseSystemPrompt + '\n' + notebookPromptExtra;
         
         

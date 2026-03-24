@@ -5,21 +5,27 @@ import { ACTION_REGISTRY } from '../actions/actionRegistry.mjs';
  * Builds the tools block for the system prompt dynamically.
  * Prefers Context Pack snapshot if available, falls back to live registry.
  */
-function buildToolsBlock(contextPack) {
+function buildToolsBlock(contextPack, dynamicConstraints = []) {
     const registry = contextPack?.action_registry_snapshot || {};
     // Use context pack if it has tools, otherwise use live registry
     const source = Object.keys(registry).length > 0 ? registry : null;
     
     if (!source) {
         // Fallback: build from live ACTION_REGISTRY
-        return buildToolsFromLiveRegistry();
+        return buildToolsFromLiveRegistry(dynamicConstraints);
     }
 
     // Build from context pack snapshot
     let idx = 1;
     const lines = [];
     for (const [name, entry] of Object.entries(source)) {
-        const args = [...(entry.requiredArgs || []), ...(entry.optionalArgs || [])];
+        let args = [...(entry.requiredArgs || []), ...(entry.optionalArgs || [])];
+        
+        // DYNAMIC OVERRIDE for snapshots too
+        if (name === 'update_event_plan' && dynamicConstraints.length > 0) {
+            args = dynamicConstraints;
+        }
+
         const argsStr = args.length > 0 ? `arguments: { ${args.map(a => `"${a}": "..."`).join(', ')} }` : 'arguments: {}';
         lines.push(`${idx}. "${name}": ${entry.description}\n   - ${argsStr}`);
         idx++;
@@ -29,12 +35,20 @@ function buildToolsBlock(contextPack) {
 
 /**
  * Fallback: builds the tools block directly from the live ACTION_REGISTRY.
+ * We also accept dynamic constraints to override the schema of `update_event_plan`.
  */
-function buildToolsFromLiveRegistry() {
+function buildToolsFromLiveRegistry(dynamicConstraints = []) {
     let idx = 1;
     const lines = [];
     for (const [name, entry] of Object.entries(ACTION_REGISTRY)) {
-        const props = Object.keys(entry.schema?.properties || {});
+        let props = Object.keys(entry.schema?.properties || {});
+        
+        // DYNAMIC OVERRIDE: If this is update_event_plan and we have user constraints,
+        // we FORCE the LLM to only use the user's constraints to prevent hallucinations like "Preț discutat".
+        if (name === 'update_event_plan' && dynamicConstraints.length > 0) {
+            props = dynamicConstraints;
+        }
+
         const argsStr = props.length > 0 ? `arguments: { ${props.map(p => `"${p}": "..."`).join(', ')} }` : 'arguments: {}';
         lines.push(`${idx}. "${name}": ${entry.description}\n   - ${argsStr}`);
         idx++;
@@ -48,7 +62,7 @@ function buildToolsFromLiveRegistry() {
  *
  * @param {object} existingMemory - from loadClientMemory() for reuse in prompting
  */
-export function buildSystemPrompt(existingMemory = null, { clientContext = null, eventPlan = null, partyDraft = null, goalState = null, latestQuote = null, contextPack = null, relationshipData = null, activeRolesText = null, nextBestActionGoal = null, goalDirective = null } = {}) {
+export function buildSystemPrompt(existingMemory = null, { clientContext = null, eventPlan = null, partyDraft = null, goalState = null, latestQuote = null, contextPack = null, relationshipData = null, activeRolesText = null, nextBestActionGoal = null, goalDirective = null, dynamicConstraintKeys = [] } = {}) {
     const catalogBlock = buildCatalogPromptBlock();
 
     let clientContextBlock = '';
@@ -59,7 +73,7 @@ ${clientContext.client.billing_preset ? 'Date Facturare Recurente: ' + JSON.stri
 Memorie Relatie: ${clientContext.memory}
 
 Evenimente Active (${clientContext.active_events_count}):
-${clientContext.events.map(ev => `- [EventID: ${ev.event_id}] Data: ${ev.date || '-'} | Locatie: ${ev.location || '-'} | Sarbatorit: ${ev.celebrant || '-'} | Servicii: ${ev.service_summary || '-'} | Status: ${ev.status} / ${ev.commercial_status}`).join('\n')}
+${clientContext.events.map(ev => `- [EventID: ${ev.id}] Data: ${ev.date || '-'} | Locatie: ${ev.location || '-'} | Sarbatorit: ${ev.celebrant || '-'} | Servicii: ${ev.service_summary || '-'} | Status: ${ev.status} / ${ev.commercial_status}`).join('\n')}
 
 CRITIC IMPORTANT PENTRU MUTATII:
 1. Nu amesteca datele! Daca clientul are >1 evenimente active si doreste sa schimbe Data, Ora, Personajul sau Locatia, TREBUIE OBLIGATORIU sa ceri CLARIFICARE: "Va referiti la petrecerea din X sau petrecerea Y?". Nu presupune (disambiguare).
@@ -143,9 +157,9 @@ IMPORTANT: Nu intreba informatii deja completate. Cere DOAR campurile lipsa. Dac
 
     // Build Party Draft context block (Phase 3 Event Dossier)
     let draftBlock = '';
-    if (partyDraft && partyDraft.conversation_id && (Object.keys(partyDraft.date_generale || {}).length > 0 || partyDraft.comercial?.campuri_obligatorii_lipsa?.length > 0)) {
+    if (partyDraft && partyDraft.conversation_id && (Object.keys(partyDraft.structured_data_json || {}).length > 0 || partyDraft.comercial?.campuri_obligatorii_lipsa?.length > 0)) {
         const pd = partyDraft;
-        const gFields = Object.keys(pd.date_generale || {}).map(k => `${k}: ${pd.date_generale[k]}`).join(', ');
+        const gFields = Object.keys(pd.structured_data_json || {}).map(k => `${k}: ${pd.structured_data_json[k]}`).join(', ');
         const bFields = Object.keys(pd.facturare || {}).map(k => `${k}: ${pd.facturare[k]}`).join(', ');
         const missing = (pd.comercial?.campuri_obligatorii_lipsa || []).join(', ');
         const readyForQuote = pd.comercial?.gata_pentru_oferta ? 'DA' : 'NU';
@@ -204,6 +218,9 @@ IMPORTANT: Comporta-te conform etapei. Nu sari peste pasi. Daca esti in event_qu
         strategyBlock = `\n=== OBIECTIV STRATEGIC CURENT ===\nObiectiv: ${goalDirective.goal}\nStrategie de comunicare: ${goalDirective.strategy}\n=== SFARSIT OBIECTIV STRATEGIC ===\n`;
     }
 
+    const currentDate = new Date().toLocaleDateString('ro-RO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const dateBlock = `\n=== CONTEXT TEMPORAL ===\nAstăzi este: ${currentDate}\nToate datele din conversatie se referă la acest context. Daca clientul zice "sambata viitoare", calculeaza data corecta bazat pe ziua de azi.\n=== SFARSIT CONTEXT ===\n`;
+
     return `Esti asistentul AI al Superparty — companie de organizare evenimente si petreceri.
 Analizeaza conversatia WhatsApp de mai jos dintre echipa noastra (Superparty) si un Client.
 Extrage detaliile principale folosind DOAR informatiile explicite din conversatie. Nu inventa nimic.
@@ -213,13 +230,25 @@ IMPORTANT: Toate valorile text din JSON TREBUIE sa fie in limba ROMANA.
 === CATALOGUL NOSTRU DE SERVICII ===
 ${catalogBlock}
 === SFARSIT CATALOG ===
-${roleBlock}${memoryBlock}${relationBlock}${planBlock}${goalBlock}${quoteBlock}${strategyBlock}${contextNbaBlock}
+${dateBlock}${clientContextBlock}${roleBlock}${memoryBlock}${relationBlock}${planBlock}${goalBlock}${quoteBlock}${strategyBlock}${contextNbaBlock}
 SARCINA TA:
 1. Identifica ce SERVICII din catalogul nostru sunt cerute sau mentionate in conversatie.
 2. Pentru fiecare serviciu detectat, extrage campurile obligatorii completate sau pune null daca lipsesc.
-3. Calculeaza ce campuri lipsesc PER SERVICIU.
-4. Sugereaza cross-sell bazat pe serviciile detectate.
-5. Genereaza un raspuns sugerat care cere fix informatiile lipsa pentru serviciile detectate.
+3. DETECTEAZA EXCLUZIUNILE (ex: "fara confetti", "nu dorim baloane"). Daca clientul refuza ceva, noteaza in campul "exclusions" (array de stringuri).
+4. Calculeaza ce campuri lipsesc PER SERVICIU.
+5. Sugereaza cross-sell-uri daca sunt oportunitati.
+6. Generaza un RASPUNS (reply_only sau via tool) care sa ceara politicos datele Lipsa.
+
+=== REGULI DE NOTARE A DATELOR (OBLIGATORIU) ===
+- De fiecare data cand identifici un SERVICIU (ex: animator, ursitoare), acesta devine un "Rol Activ".
+- Pentru fiecare Rol Activ, TREBUIE sa extragi campurile specifice mentionate in catalog (ex: personaj, durata, nume sarbatorit, data nastere sarbatorit).
+- NOTEAZA aceste campuri imediat folosind unealta "update_event_plan".
+- EXCLUZIUNI: Daca clientul zice "fara X" sau "nu dorim Y", adauga "X" sau "Y" in argumentul 'exclusions' al uneltei 'update_event_plan'.
+- Nu astepta ca utilizatorul sa dea toate datele deodata. Noteaza-le PE RAND, pe masura ce apar in discutie (prin update_event_plan).
+- Daca clientul intreaba de pret, ofera-i pachetele din KB, dar in paralel trimite si unealta de update daca a oferit detalii noi.
+=== SFARSIT REGULI ===
+
+REGULI DE CLARIFICARE (OBLIGATORII):
 6. Clasifica entitatea: este CLIENT final, COLABORATOR (organizeaza pentru altcineva), PARTENER/intermediar, sau NECUNOSCUT.
 7. Detecteaza obiceiuri si preferinte.
 
@@ -230,13 +259,14 @@ Returneaza un obiect JSON STRICT conform acestui format cu 3 chei principale:
   "tool_action": {
     "name": "Numele actiunii din registrul de unelte",
     "arguments": {
-      "cheie": "valoare_extrasa"
+      "cheie": "valoare_extrasa",
+      "exclusions": ["confetti"] // Array de elemente pe care clientul a zis EXPLICIT ca NU le vrea
     }
   }
 }
 
 === UNELTE DISPONIBILE PENTRU tool_action.name ===
-${buildToolsBlock(contextPack)}
+${buildToolsBlock(contextPack, dynamicConstraintKeys)}
 === SFARSIT UNELTE ===
 ${contextPack ? `[context_pack v${contextPack.action_registry_version} | SHA:${(contextPack.deployed_commit_sha || '').substring(0, 8)} | prompt:${contextPack.prompt_version}]` : ''}
 
@@ -247,10 +277,11 @@ REGULI GENERALE:
 - Foloseste "update_event_plan" DOAR cu campurile pe care le stii / s-au schimbat.
 - CRITIC: Cand folosesti update_event_plan, PUNE in arguments FIECARE CAMP extras din mesaj.
   Exemplu 1: daca clientul zice "vreau pe 20 aprilie in Bucuresti", arguments TREBUIE sa contina:
-  { "data_evenimentului": "2026-04-20", "localitate": "București" }
+  { "data_eveniment": "2026-04-20", "locatie": "București" }
   Exemplu 2: daca clientul cere "arcada organica de 3 metri", extrage obligatoriu { "metri_liniari": 3, "model_arcada": "organica" }.
   NU lasa arguments gol — daca ai ales update_event_plan, PUNE datele in arguments!
-- Formate recomandate: data_evenimentului=YYYY-MM-DD, numar_copii=numar, metoda_de_plata=text, doreste_factura=boolean. Respectă tipurile!
+- Formate recomandate: data_eveniment=YYYY-MM-DD, numar_copii=numar, metoda_de_plata=text, doreste_factura=boolean. Respectă tipurile!
+- NUANTE ROMANA: "27 martie" -> YYYY-03-27. "ora 14:00" -> "14:00". Daca clientul da doua ore (ex: "petrecerea e la 14:00, animatia la 15:00"), extrage "ora_eveniment": "14:00" si mentioneaza in detalii animatia la 15:00.
 REGULI DE CLARIFICARE (OBLIGATORII):
 - Daca mesajul clientului este AMBIGUU sau INCOMPLET, NU executa side effects. Foloseste "reply_only" si cere clarificare naturala.
 - Daca nu e clar daca clientul vrea eveniment NOU sau MODIFICARE la unul existent, INTREABA inainte de a executa.
