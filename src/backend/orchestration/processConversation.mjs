@@ -922,6 +922,7 @@ export async function processConversation(conversation_id, message_id = null, op
                 existingDraft: existingDraftRow,
                 newDraftData: eventDraft,
                 newServices: serviceData.selected_services,
+                rolesObjects: rolesToEvaluateObjects,
                 conversationId: conversation_id,
                 clientId
             });

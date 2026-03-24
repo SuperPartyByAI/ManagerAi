@@ -19,6 +19,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
  * @param {object} params.existingDraft  - current draft row from DB
  * @param {object} params.newDraftData   - LLM's event_draft output
  * @param {object} params.newServices    - LLM's selected_services
+ * @param {array}  params.rolesObjects   - Array of rule templates fetched from the DB
  * @param {string} params.conversationId
  * @param {string} params.clientId
  * @returns {object} { applied, draftId, mutationId, afterState }
@@ -28,6 +29,7 @@ export async function applyEventMutation({
     existingDraft,
     newDraftData,
     newServices,
+    rolesObjects, // Inject DB constraints natively
     conversationId,
     clientId
 }) {
@@ -123,8 +125,8 @@ export async function applyEventMutation({
     // --- Conditional Promotion Logic (Draft -> Active) ---
     if (afterStatus === 'draft' || !existingDraft) {
         const { computeMissingPartyFields } = await import('../party/partyMissingFieldsEngine.mjs');
-        // We use afterState but we must be careful since computeMissingPartyFields expects structured_data_json
-        const { isFullyComplete } = computeMissingPartyFields({ structured_data_json: afterState }, newServices || []);
+        // Pass the actual active db objects instead of string slugs
+        const { isFullyComplete } = computeMissingPartyFields({ structured_data_json: afterState }, rolesObjects || []);
         
         if (isFullyComplete) {
             payload.status = 'confirmed';
