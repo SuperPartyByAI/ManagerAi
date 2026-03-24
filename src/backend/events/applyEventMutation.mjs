@@ -129,8 +129,8 @@ export async function applyEventMutation({
         const { isFullyComplete } = computeMissingPartyFields({ structured_data_json: afterState }, rolesObjects || []);
         
         if (isFullyComplete) {
-            payload.status = 'confirmed';
-            console.log(`[Mutation] Event ${existingDraft?.id || 'NEW'} promoted to CONFIRMED (Fully Complete)`);
+            payload.status = 'active'; // V2 table uses 'active', not 'confirmed'
+            console.log(`[Mutation] Event ${existingDraft?.id || 'NEW'} promoted to ACTIVE (Fully Complete)`);
         } else {
             payload.status = 'draft';
         }

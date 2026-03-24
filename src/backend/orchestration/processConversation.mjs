@@ -1020,7 +1020,7 @@ export async function processConversation(conversation_id, message_id = null, op
                             // 1. Create a NEW active event for this role
                             const newActiveEvent = {
                                 client_id: clientId,
-                                status: 'confirmed',
+                                status: 'active',
                                 data_eveniment: partyDraft.data_eveniment || partyDraft.date,
                                 ora_eveniment: partyDraft.ora_eveniment || partyDraft.time,
                                 locatie: partyDraft.locatie || partyDraft.location,
@@ -1041,7 +1041,7 @@ export async function processConversation(conversation_id, message_id = null, op
                         }
                     } else if (p3Eval.isFullyComplete && partyDraft.draft_status === 'discovery') {
                         // All roles ready + birth date -> promote the whole draft
-                        partyDraft.draft_status = 'confirmed';
+                        partyDraft.draft_status = 'active';
                         console.log(`[Phase3 PartyBuilder] Auto-confirmed draft ${conversation_id} (All roles complete)`);
                     }
                 } else if (p3Eval.isReadyForQuote && partyDraft.draft_status === 'discovery') {

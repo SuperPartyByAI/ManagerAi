@@ -16,11 +16,11 @@ export async function loadClientContext(phoneE164, conversationId) {
     let clientEvents = [];
     let memorySummary = null;
 
-    // 1. Căutăm Clientul (ai_client_profiles)
+    // 1. Căutăm Clientul (clients)
     const { data: profiles, error: profileErr } = await supabase
-        .from('ai_client_profiles')
+        .from('clients')
         .select('*')
-        .eq('telefon_e164', phoneE164)
+        .eq('telefon', phoneE164)
         .limit(1);
 
     if (profileErr) {
@@ -42,27 +42,30 @@ export async function loadClientContext(phoneE164, conversationId) {
     clientProfile = profiles[0];
 
     // 2. Căutăm Evenimentele (ai_client_events)
-    // Aducem doar petrecerile nefinalizate / active.
+    // Aducem toate petrecerile (putem filtra după status ulterior dacă e nevoie)
     const { data: events, error: eventsErr } = await supabase
         .from('ai_client_events')
         .select('*')
-        .eq('client_id', clientProfile.client_id)
-        .eq('is_active', true)
+        .eq('client_id', clientProfile.id)
         .order('created_at', { ascending: false });
 
     if (!eventsErr && events) {
         clientEvents = events;
     }
 
-    // 3. Căutăm Client Memory Summary
-    const { data: summaryData } = await supabase
-        .from('ai_client_memory_summary')
-        .select('*')
-        .eq('client_id', clientProfile.client_id)
-        .limit(1);
+    // 3. Căutăm Client Memory Summary (Safe check if table exists)
+    try {
+        const { data: summaryData } = await supabase
+            .from('ai_client_memory_summary')
+            .select('*')
+            .eq('client_id', clientProfile.id)
+            .limit(1);
 
-    if (summaryData && summaryData.length > 0) {
-        memorySummary = summaryData[0];
+        if (summaryData?.length > 0) {
+            memorySummary = summaryData[0];
+        }
+    } catch (summaryErr) {
+        console.warn(`[MemoryLoader] Summary table missing or error:`, summaryErr.message);
     }
 
     // Compunem contextul
@@ -71,23 +74,21 @@ export async function loadClientContext(phoneE164, conversationId) {
     const context = {
         is_new_client: false,
         client: {
-            id: clientProfile.client_id,
-            name: clientProfile.nume_client,
-            type: clientProfile.tip_client,
-            phone: clientProfile.telefon_e164,
-            billing_preset: clientProfile.date_facturare_uzuale,
-            preferences: clientProfile.preferinte_recurente
+            id: clientProfile.id,
+            name: clientProfile.nume,
+            type: clientProfile.tip_client || 'persoana_fizica',
+            phone: clientProfile.telefon,
+            billing_preset: null,
+            preferences: null
         },
-        memory: memorySummary ? memorySummary.summary_text : `Clientul are ${activeCount} evenimente active.`,
+        memory: memorySummary ? memorySummary.summary_text : `Clientul are ${activeCount} evenimente.`,
         active_events_count: activeCount,
         events: clientEvents.map(ev => ({
-            event_id: ev.event_id,
-            status: ev.status_eveniment,
-            commercial_status: ev.status_comercial,
-            date: ev.data_evenimentului,
-            time: ev.ora_evenimentului,
-            location: ev.localitate,
-            service_summary: ev.suma_totala_servicii,
+            id: ev.id,
+            status: ev.status,
+            date: ev.data_eveniment,
+            time: ev.ora_eveniment,
+            location: ev.locatie,
             celebrant: ev.nume_sarbatorit
         }))
     };
@@ -102,12 +103,12 @@ export async function loadClientContext(phoneE164, conversationId) {
 export async function createNewClientWithEvent(phoneE164, conversationId) {
     // Insert profil
     const { data: profData, error: profErr } = await supabase
-        .from('ai_client_profiles')
+        .from('clients')
         .insert({
-            telefon_e164: phoneE164,
+            telefon: phoneE164,
             tip_client: 'persoana_fizica'
         })
-        .select('client_id')
+        .select('id')
         .single();
         
     if (profErr || !profData) {
@@ -115,19 +116,17 @@ export async function createNewClientWithEvent(phoneE164, conversationId) {
         throw new Error("Cannot create client profile");
     }
 
-    const clientId = profData.client_id;
+    const clientId = profData.id;
 
     // Insert Event
     const { data: eventData, error: eventErr } = await supabase
         .from('ai_client_events')
         .insert({
             client_id: clientId,
-            source_conversation_id: conversationId,
-            status_eveniment: 'draft',
-            status_comercial: 'lead_nou',
-            is_active: true
+            status: 'draft',
+            updated_at: new Date().toISOString()
         })
-        .select('event_id')
+        .select('id')
         .single();
 
     if (eventErr || !eventData) {
@@ -136,16 +135,20 @@ export async function createNewClientWithEvent(phoneE164, conversationId) {
     }
 
     // Generam și Summary-ul
-    await supabase.from('ai_client_memory_summary').insert({
-        client_id: clientId,
-        summary_text: 'Client complet nou. Prima petrecere inițiată.',
-        active_events_count: 1,
-        active_event_ids: [eventData.event_id],
-        last_active_event_id: eventData.event_id
-    });
+    try {
+        await supabase.from('ai_client_memory_summary').insert({
+            client_id: clientId,
+            summary_text: 'Client complet nou. Prima petrecere inițiată.',
+            active_events_count: 1,
+            active_ids: [eventData.id],
+            last_active_id: eventData.id
+        });
+    } catch (summaryErr) {
+        console.warn(`[MemoryLoader] Summary table insert skipped:`, summaryErr.message);
+    }
 
     return {
         client_id: clientId,
-        event_id: eventData.event_id
+        id: eventData.id
     };
 }

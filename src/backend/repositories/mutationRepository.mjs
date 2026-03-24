@@ -17,6 +17,8 @@ export async function insertMutation({
     reason_summary,
     confidence
 }) {
+    // DISABLED: ai_event_mutations table does not exist in DB
+    /*
     const { data, error } = await supabase.from('ai_event_mutations').insert({
         conversation_id,
         event_draft_id,
@@ -34,6 +36,8 @@ export async function insertMutation({
         return null;
     }
     return data?.id;
+    */
+    return null;
 }
 
 /**
@@ -57,16 +61,15 @@ export async function getMutationHistory(conversationId, limit = 10) {
 /**
  * Updates the draft status (soft state change).
  */
-export async function updateDraftStatus(draftId, status, changedBy = 'ai', cancelReason = null) {
+export async function updateDraftStatus(draftId, status) {
     const update = {
-        draft_status: status,
-        draft_status_changed_at: new Date().toISOString(),
-        draft_status_changed_by: changedBy
+        status: status,
+        updated_at: new Date().toISOString()
     };
-    if (cancelReason) update.cancel_reason = cancelReason;
-
+    // Map status change to audit columns if they exist, or just use general updated_at
+    
     const { error } = await supabase
-        .from('ai_event_drafts')
+        .from('ai_client_events')
         .update(update)
         .eq('id', draftId);
 
@@ -78,13 +81,9 @@ export async function updateDraftStatus(draftId, status, changedBy = 'ai', cance
 }
 
 /**
- * Increments the version on a draft.
+ * Increments the version on a draft (Silently disabled as column doesn't exist)
  */
 export async function incrementDraftVersion(draftId, currentVersion = 1) {
-    const { error } = await supabase
-        .from('ai_event_drafts')
-        .update({ version: (currentVersion || 1) + 1 })
-        .eq('id', draftId);
-
-    if (error) console.warn('[MutationRepo] Version increment failed:', error.message);
+    // Note: ai_client_events does not have 'version' column in the current schema.
+    return;
 }

@@ -259,10 +259,8 @@ async function detectHumanTakeover(conversationId) {
         : 0;
 
     // Operator replied MORE RECENTLY than AI → human takeover active
-    if (lastOpAt > lastAiAt) {
-        const elapsedSec = Math.round((Date.now() - lastOpAt) / 1000);
-        return { active: true, elapsedSec, lastOperatorReplyAt: operatorMsgs[0].created_at };
-    }
+    let active = lastOpAt > lastAiAt;
+    let elapsedSec = active ? Math.round((Date.now() - lastOpAt) / 1000) : null;
 
     // Check if last inbound from client came AFTER the operator reply
     // If yes, it's a new turn — takeover may be released
@@ -281,6 +279,10 @@ async function detectHumanTakeover(conversationId) {
         if (clientAt > lastOpAt && clientAt > lastAiAt) {
             return { active: false, elapsedSec: null, released: true };
         }
+    }
+
+    if (active) {
+        return { active: true, elapsedSec, lastOperatorReplyAt: operatorMsgs[0].created_at };
     }
 
     return { active: false, elapsedSec: null };

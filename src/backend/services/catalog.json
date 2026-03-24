@@ -1,12 +1,12 @@
 {
-  "version": "1.0",
-  "last_updated": "2026-03-12",
+  "version": "1.1",
+  "last_updated": "2026-03-23",
   "services": [
     {
       "service_key": "animator",
       "display_name": "Animator / Animatoare",
       "description": "Animatoare sau animatori pentru petreceri copii. Program de divertisment, jocuri, dans.",
-      "required_fields": ["varsta_copil", "nume_copil", "nr_copii", "durata_ore", "nr_animatori", "ora_eveniment", "data_eveniment", "locatie"],
+      "required_fields": ["varsta_sarbatoritului", "nume_copil", "numar_copii", "durata_ore", "nr_animatori", "ora_evenimentului", "data_evenimentului", "localitate"],
       "optional_fields": ["tematica", "personaj_preferat"],
       "standard_questions": [
         "Cum il/o cheama pe sarbatorit si cati ani implineste?",
@@ -24,8 +24,8 @@
       "service_key": "ursitoare",
       "display_name": "Ursitoare",
       "description": "Ursitoare pentru botez. Program de ursire cu accesorii tradiționale.",
-      "required_fields": ["data_eveniment", "locatie", "nr_invitati", "sex_copil", "nume_copil"],
-      "optional_fields": ["religie", "tematica_botez", "ora_eveniment"],
+      "required_fields": ["data_evenimentului", "localitate", "numar_invitati", "sex_copil", "nume_copil"],
+      "optional_fields": ["religie", "tematica_botez", "ora_evenimentului"],
       "standard_questions": [
         "Care este data botezului?",
         "Unde va fi evenimentul?",
@@ -42,7 +42,7 @@
       "service_key": "vata_zahar",
       "display_name": "Vata de Zahar",
       "description": "Stand de vata de zahar pentru evenimente. Include aparat + operator.",
-      "required_fields": ["data_eveniment", "locatie", "durata_ore", "nr_estimat_portii"],
+      "required_fields": ["data_evenimentului", "localitate", "durata_ore", "numar_estimat_portii"],
       "optional_fields": ["culori_vata", "interior_exterior"],
       "standard_questions": [
         "Cate ore doriti standul?",
@@ -58,7 +58,7 @@
       "service_key": "popcorn",
       "display_name": "Popcorn",
       "description": "Stand de popcorn pentru evenimente. Include aparat + operator.",
-      "required_fields": ["data_eveniment", "locatie", "durata_ore", "nr_estimat_portii"],
+      "required_fields": ["data_evenimentului", "localitate", "durata_ore", "numar_estimat_portii"],
       "optional_fields": ["arome", "interior_exterior"],
       "standard_questions": [
         "Cate ore doriti standul?",
@@ -74,7 +74,7 @@
       "service_key": "arcada_baloane",
       "display_name": "Arcada Baloane",
       "description": "Arcada decorativa din baloane pentru intrare, candy bar sau photo corner.",
-      "required_fields": ["data_eveniment", "locatie", "culori_baloane", "dimensiune_arcada"],
+      "required_fields": ["data_evenimentului", "localitate", "culori_baloane", "dimensiune_arcada"],
       "optional_fields": ["tematica", "tip_baloane", "personalizare_text"],
       "standard_questions": [
         "Ce culori doriti pentru baloane?",
@@ -90,7 +90,7 @@
       "service_key": "arcada_suport",
       "display_name": "Arcada pe Suport",
       "description": "Arcada decorativa montata pe suport metalic. Varianta stabila, fara fixare pe perete.",
-      "required_fields": ["data_eveniment", "locatie", "culori_baloane", "dimensiune"],
+      "required_fields": ["data_evenimentului", "localitate", "culori_baloane", "dimensiune"],
       "optional_fields": ["tematica", "tip_suport"],
       "standard_questions": [
         "Ce culori doriti?",
@@ -106,7 +106,7 @@
       "service_key": "arcada_exterior",
       "display_name": "Arcada Exterior",
       "description": "Arcada de baloane special conceputa pentru evenimente in exterior. Rezistenta la vant.",
-      "required_fields": ["data_eveniment", "locatie", "culori_baloane", "dimensiune"],
+      "required_fields": ["data_evenimentului", "localitate", "culori_baloane", "dimensiune"],
       "optional_fields": ["tematica", "tip_fixare"],
       "standard_questions": [
         "Ce culori doriti?",
@@ -122,7 +122,7 @@
       "service_key": "suport_arcada_baloane",
       "display_name": "Suport Arcada cu Baloane",
       "description": "Structura de suport pentru arcada de baloane. Se inchiriaza separat sau impreuna cu arcada.",
-      "required_fields": ["data_eveniment", "locatie", "dimensiune_suport"],
+      "required_fields": ["data_evenimentului", "localitate", "dimensiune_suport"],
       "optional_fields": ["include_baloane", "tip_suport"],
       "standard_questions": [
         "Doriti suportul cu sau fara baloane?",
@@ -137,7 +137,7 @@
       "service_key": "cifre_volumetrice",
       "display_name": "Cifre Volumetrice",
       "description": "Cifre volumetrice luminoase sau decorate pentru aniversari, candy bar.",
-      "required_fields": ["data_eveniment", "locatie", "cifra_dorita", "culoare"],
+      "required_fields": ["data_evenimentului", "localitate", "cifra_dorita", "culoare"],
       "optional_fields": ["cu_lumini", "cu_baloane", "dimensiune"],
       "standard_questions": [
         "Ce cifra doriti? (ex: 1, 2, etc.)",
@@ -153,7 +153,7 @@
       "service_key": "mos_craciun",
       "display_name": "Mos Craciun",
       "description": "Vizita Mos Craciun la domiciliu, firma sau eveniment. Include costum profesional.",
-      "required_fields": ["data_eveniment", "locatie", "ora_vizita", "nr_copii", "lista_cadouri"],
+      "required_fields": ["data_evenimentului", "localitate", "ora_vizita", "numar_copii", "lista_cadouri"],
       "optional_fields": ["durata", "cerinte_speciale"],
       "standard_questions": [
         "In ce data doriti vizita?",
@@ -170,7 +170,7 @@
       "service_key": "parfumerie",
       "display_name": "Parfumerie / Atelier Parfumuri",
       "description": "Atelier interactiv de creare parfumuri. Activitate creativa pentru copii sau adulti.",
-      "required_fields": ["data_eveniment", "locatie", "nr_participanti", "varsta_participanti"],
+      "required_fields": ["data_evenimentului", "localitate", "numar_participanti", "varsta_participanti"],
       "optional_fields": ["durata", "tematica"],
       "standard_questions": [
         "Cati participanti vor fi?",
@@ -186,7 +186,7 @@
       "service_key": "gheata_carbonica",
       "display_name": "Gheata Carbonica / Efect Fum",
       "description": "Efect de fum greu cu gheata carbonica pentru intrari spectaculoase, dansul mirilor, etc.",
-      "required_fields": ["data_eveniment", "locatie", "moment_utilizare", "durata_efect"],
+      "required_fields": ["data_evenimentului", "localitate", "moment_utilizare", "durata_efect"],
       "optional_fields": ["nr_masini_fum", "interior_exterior"],
       "standard_questions": [
         "In ce moment doriti efectul? (dansul mirilor, intrare, etc.)",

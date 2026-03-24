@@ -161,9 +161,12 @@ export async function getConversationDiagnostic(conversationId) {
 
     // Event draft
     const { data: draft } = await supabase
-        .from('ai_event_drafts')
-        .select('draft_type, structured_data_json, missing_fields_json, confidence_score, updated_at')
-        .eq('conversation_id', conversationId)
+        .from('ai_client_events')
+        .select('id, status, data_eveniment, locatie, nume_sarbatorit, ora_eveniment, servicii_cerute, updated_at')
+        .eq('client_id', conv?.client_id)
+        .eq('status', 'draft')
+        .order('updated_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
     // Latest schema component types
@@ -223,9 +226,17 @@ export async function getConversationDiagnostic(conversationId) {
             last_updated: entityMemory.updated_at
         } : null,
         event_draft: draft ? {
-            ...draft,
-            draft_status: draft.draft_status || 'active',
-            version: draft.version || 1
+            id: draft.id,
+            draft_status: draft.status || 'discovery',
+            structured_data_json: {
+                date: draft.data_eveniment,
+                location: draft.locatie,
+                celebrant: draft.nume_sarbatorit,
+                time: draft.ora_eveniment
+            },
+            services: (draft.servicii_cerute || []).map(s => s.role_key),
+            version: draft.version || 1,
+            updated_at: draft.updated_at
         } : null,
         schema_components: schemaComponents,
         decision_history: history || [],

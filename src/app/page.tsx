@@ -381,6 +381,15 @@ export default function CopilotPage() {
     loadClientEvents();
   };
 
+  const confirmDraft = async (id: string) => {
+    await fetch("/api/vertex/events", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status: "active" }),
+    });
+    loadClientEvents();
+  };
+
   const permanentDeleteEvent = async (id: string) => {
     if (!confirm("ȘTERGERE PERMANENTĂ! Nu se mai poate recupera. Continui?")) return;
     await fetch(`/api/vertex/events?id=${id}`, { method: "DELETE" });
@@ -388,7 +397,7 @@ export default function CopilotPage() {
   };
 
   const activeEvents = clientEvents
-    .filter(e => e.status === 'active' || !e.status)
+    .filter(e => e.status === 'active' || !e.status || e.status === 'draft')
     .sort((a, b) => {
       // Helpers for extracting date from event_details
       const getDateStr = (ev: { event_details?: Record<string, any> }) => {
@@ -407,9 +416,9 @@ export default function CopilotPage() {
       const timeB = new Date(dateB).getTime();
       
       // If parsing fails for one of them, fallback to string comparison or put at end
-      if (isNaN(timeA) && isNaN(timeB)) return dateA.localeCompare(dateB);
-      if (isNaN(timeA)) return 1;
-      if (isNaN(timeB)) return -1;
+      if (Number.isNaN(timeA) && Number.isNaN(timeB)) return dateA.localeCompare(dateB);
+      if (Number.isNaN(timeA)) return 1;
+      if (Number.isNaN(timeB)) return -1;
 
       return timeA - timeB; // Ascending order (earliest first)
     });
@@ -1088,14 +1097,28 @@ export default function CopilotPage() {
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
                               <span className="font-black text-base text-purple-400 uppercase tracking-wide">{ev.role_title.replace('Rol: ', '')}</span>
-                              <span className="bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-0.5 rounded-md text-sm border border-emerald-500/30 shadow-sm">
-                                📅 {dateStr}
-                              </span>
+                              {ev.status === 'draft' ? (
+                                <span className="bg-yellow-500/20 text-yellow-400 font-bold px-2.5 py-0.5 rounded-md text-sm border border-yellow-500/30 shadow-sm animate-pulse">
+                                  📝 CIORNĂ (AI)
+                                </span>
+                              ) : (
+                                <span className="bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-0.5 rounded-md text-sm border border-emerald-500/30 shadow-sm">
+                                  📅 {dateStr}
+                                </span>
+                              )}
                             </div>
                             <div className="text-[10px] text-[var(--color-dim)]">Notat pe: {new Date(ev.created_at).toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
+                          {ev.status === 'draft' && (
+                            <button 
+                              onClick={() => confirmDraft(ev.id)} 
+                              className="text-[10px] bg-emerald-600 text-white px-2.5 py-1 rounded-md hover:bg-emerald-500 transition-all font-bold border border-emerald-500/30 flex items-center gap-1"
+                            >
+                              ✨ Trece pe curat
+                            </button>
+                          )}
                           {!isEditing ? (
                             <>
                               <button onClick={() => startEditEvent(ev)} className="text-[10px] bg-purple-500/10 text-purple-400 px-2 py-1 rounded-md hover:bg-purple-500/20 transition-all border border-purple-500/20" title="Editează">✏️</button>
@@ -1134,7 +1157,7 @@ export default function CopilotPage() {
                                       // Detectăm prefix numeric: "3 Ursitoare Bune", "1 Rea", "2 Vrăjitoare" etc.
                                       const numMatch = p.match(/^(\d+)\s+(.+)$/);
                                       if (numMatch) {
-                                        const count = Math.min(parseInt(numMatch[1], 10), 10);
+                                        const count = Math.min(Number.parseInt(numMatch[1], 10), 10);
                                         let label = numMatch[2].trim();
                                         // Normalizăm pluralul → singular
                                         label = label

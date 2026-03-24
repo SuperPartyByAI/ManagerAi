@@ -6,13 +6,13 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const SENSITIVE_FIELDS = ['data_evenimentului', 'ora_evenimentului', 'locatie_eveniment', 'nume_sarbatorit', 'servicii'];
+const SENSITIVE_FIELDS = ['data_eveniment', 'ora_eveniment', 'locatie_eveniment', 'nume_sarbatorit', 'servicii'];
 
 /**
  * Gatekeeper pentru mutațiile pe Portofoliul de Evenimente.
  * Verifică intenția LLM-ului raportat la contextul Clientului.
  * 
- * @param {Object} llmIntent - Payload JSON generat de LLM (ex: { mutation: { field: "data_evenimentului", value: "2024-05-20" } })
+ * @param {Object} llmIntent - Payload JSON generat de LLM (ex: { mutation: { field: "data_eveniment", value: "2024-05-20" } })
  * @param {Object} clientContext - Portofoliul de evenimente generat de clientMemoryLoader
  */
 export async function evaluateMutationIntent(llmIntent, clientContext) {
@@ -37,28 +37,28 @@ export async function evaluateMutationIntent(llmIntent, clientContext) {
     }
 
     // 3. Are intenție clară de Mutare, trebuie să verificăm siguranța ancorării (Event ID)
-    const mutation = llmIntent.mutation; // { target_event_id, field, new_value }
+    const mutation = llmIntent.mutation; // { target_id, field, new_value }
     
-    // Fallback: Dacă LLM a uitat să pună event_id dar are 1 singur eveniment.
-    let targetEventId = mutation.target_event_id;
+    // Fallback: Dacă LLM a uitat să pună id dar are 1 singur eveniment.
+    let targetEventId = mutation.target_id;
     if (!targetEventId && activeCount === 1) {
-        targetEventId = activeEvents[0].event_id;
+        targetEventId = activeEvents[0].id;
     }
 
     // Dacă are mai multe evenimente și nu a trimis target clar, forțăm blocaj Disambiguare!
     if (!targetEventId && activeCount > 1) {
         return { 
             action: 'block_ask_disambiguation', 
-            reason: 'missing_target_event_id_for_multiple_events' 
+            reason: 'missing_target_id_for_multiple_events' 
         };
     }
 
     // Dacă a găsit ținta, o validăm.
-    const targetEvent = activeEvents.find(e => e.event_id === targetEventId);
+    const targetEvent = activeEvents.find(e => e.id === targetEventId);
     if (!targetEvent) {
         return { 
             action: 'block_invalid_target', 
-            reason: 'target_event_id_not_found_in_active_portfolio'
+            reason: 'target_id_not_found_in_active_portfolio'
         };
     }
 
@@ -69,7 +69,7 @@ export async function evaluateMutationIntent(llmIntent, clientContext) {
     if (llmIntent.client_confirmed_mutation === true) {
         return {
             action: 'apply_mutation',
-            event_id: targetEventId,
+            id: targetEventId,
             field: mutation.field,
             old_value: targetEvent[mutation.field] || null,
             new_value: mutation.new_value,
@@ -81,7 +81,7 @@ export async function evaluateMutationIntent(llmIntent, clientContext) {
     if (isSensitive) {
         return {
             action: 'block_ask_confirmation',
-            event_id: targetEventId,
+            id: targetEventId,
             field: mutation.field,
             suggested_new_value: mutation.new_value,
             reason: 'sensitive_mutation_requires_client_consent'
@@ -91,7 +91,7 @@ export async function evaluateMutationIntent(llmIntent, clientContext) {
     // 7. Mutatii minore (ex: observatii) se aproba direct
     return {
         action: 'apply_mutation',
-        event_id: targetEventId,
+        id: targetEventId,
         field: mutation.field,
         old_value: targetEvent[mutation.field] || null,
         new_value: mutation.new_value,
@@ -109,13 +109,13 @@ export async function commitEventMutation(mutationContext, clientId) {
     // În mod real, trebuie decis la design dacă modificăm direct draft-ul sau fields de search din events.
     // Pentru câmpuri generale, de ex event_date:
     
-    // Simulăm un update general spre tabela care tine "data_evenimentului" (ai_client_events)
+    // Simulăm un update general spre tabela care tine "data_eveniment" (ai_client_events)
     // Dacă e câmp detaliat (ex: 'personaj'), el va merge de fapt in party_drafts. 
     // Acest mapper va trebui implementat ulterior la legarea de PartyBuilder.
     
     // 2. Scrie în ChangeLog 
     const { error: logErr } = await supabase.from('ai_event_change_log').insert({
-        event_id: mutationContext.event_id,
+        id: mutationContext.id,
         client_id: clientId,
         changed_field: mutationContext.field,
         old_value: String(mutationContext.old_value),
@@ -125,7 +125,7 @@ export async function commitEventMutation(mutationContext, clientId) {
     });
 
     if (logErr) {
-        console.error(`[Gatekeeper] Failed to write Audit Log for Event ${mutationContext.event_id}`, logErr.message);
+        console.error(`[Gatekeeper] Failed to write Audit Log for Event ${mutationContext.id}`, logErr.message);
         return false;
     }
 

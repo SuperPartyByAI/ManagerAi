@@ -15,17 +15,30 @@ export async function savePartyDraft(partyDraft) {
     }
 
     try {
-        // Upsert based on the unique conversation_id logic
-        const { data, error } = await supabase
-            .from('ai_party_drafts')
-            .upsert(partyDraft, { onConflict: 'conversation_id', returning: 'minimal' });
+        // Map internal object to database columns
+        const payload = {
+            client_id: partyDraft.client_id,
+            conversation_id: partyDraft.conversation_id, // Ensure conversation_id is part of the payload for upsert
+            status: partyDraft.draft_status || 'draft',
+            servicii_cerute: partyDraft.services?.map(s => ({ role_key: s, role_title: s })) || [],
+            data_eveniment: partyDraft.structured_data_json?.date || partyDraft.structured_data_json?.data_eveniment,
+            locatie: partyDraft.structured_data_json?.location || partyDraft.structured_data_json?.locatie,
+            nume_sarbatorit: partyDraft.structured_data_json?.celebrant || partyDraft.structured_data_json?.nume_sarbatorit,
+            ora_eveniment: partyDraft.structured_data_json?.time || partyDraft.structured_data_json?.ora_eveniment,
+            updated_at: new Date().toISOString()
+        };
+
+        if (partyDraft.id) {
+            payload.id = partyDraft.id;
+        }
+
+        // Upsert based on the ID if available, otherwise just insert
+        const { error } = await supabase
+            .from('ai_client_events')
+            .upsert(payload);
 
         if (error) {
             console.error(`[savePartyDraft] DB Error: ${error.message} \nDetails: ${error.details}`);
-            // If the table literally doesn't exist yet (because the DDL hasn't run), log but don't hard crash
-            if (error.code === '42P01' || error.message.includes('Could not find the table')) {
-                console.warn("[savePartyDraft] The ai_party_drafts table does not exist. Ignoring save.");
-            }
             return false;
         }
 

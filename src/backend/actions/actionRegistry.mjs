@@ -32,10 +32,10 @@ export const ACTION_REGISTRY = {
             properties: {
                 // General Fields
                 tip_eveniment: { type: 'string', description: 'Tipul evenimentului (ex. botez, zi de nastere, nunta)' },
-                data_evenimentului: { type: 'string', description: 'Data evenimentului (ex. 20 aprilie)' },
-                ora_evenimentului: { type: 'string', description: 'Ora evenimentului (ex. 17:00)' },
+                data_eveniment: { type: 'string', description: 'Data evenimentului (ex. 20 aprilie)' },
+                ora_eveniment: { type: 'string', description: 'Ora evenimentului (ex. 17:00)' },
                 locatie_eveniment: { type: 'string', description: 'Locatia generala sau numele locatiei' },
-                localitate: { type: 'string', description: 'Localitatea' },
+                locatie: { type: 'string', description: 'Localitatea' },
                 judet: { type: 'string', description: 'Judetul' },
                 adresa_completa: { type: 'string', description: 'Adresa exacta/completa a locatiei' },
                 interior_sau_exterior: { type: 'string', description: 'Interior sau exterior' },

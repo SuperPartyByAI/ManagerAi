@@ -22,7 +22,7 @@ export async function getActiveNotebook(phoneNumber, primaryService) {
         if (!tpl) return null; // Nu există șablon strict pentru asta
 
         // Caută sau creează live notebook-ul clientului
-        const { data: notebook, error } = await supabase.from('ai_client_notebooks')
+        const { data: notebook } = await supabase.from('ai_client_notebooks')
             .select('*')
             .eq('phone_number', phoneNumber)
             .eq('template_key', templateKey)
@@ -58,17 +58,17 @@ export function buildNotebookPromptSection(notebookContext) {
     instructions += `\nIată ce știm DEJA (Căsuțe completate):\n`;
     let hasFilled = false;
     for(const key in liveData) {
-         instructions += `- ${key}: ${liveData[key]}\n`;
+         const val = liveData[key];
+         const displayVal = (typeof val === 'object' && val !== null) ? JSON.stringify(val) : val;
+         instructions += `- ${key}: ${displayVal}\n`;
          hasFilled = true;
     }
     if (!hasFilled) instructions += `- Nimic completat încă.\n`;
 
     instructions += `\nIată ce mai trebuie să afli NATURAL în discuție:\n`;
-    let stillMissing = [];
     fields.forEach(f => {
         if (!liveData[f.nume]) {
             instructions += `- ${f.nume} (${f.descriere})\n`;
-            stillMissing.push(f.nume);
         }
     });
 

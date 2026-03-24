@@ -1,4 +1,4 @@
-import { CATALOG_MAP } from '../services/postProcessServices.mjs';
+// CATALOG_MAP removed
 
 /**
  * Conversation Progression Engine
@@ -8,7 +8,7 @@ import { CATALOG_MAP } from '../services/postProcessServices.mjs';
  *
  * @param {object} params
  * @param {object} params.replyContext      - from buildReplyContext()
- * @param {object} params.draft             - current ai_event_drafts row (or null)
+ * @param {object} params.draft             - current ai_client_events row (or null)
  * @param {object} params.mutation          - from detectEventMutation()
  * @param {object} params.mutationResult    - from applyEventMutation()
  * @param {object} params.decision          - LLM decision object
@@ -21,7 +21,6 @@ export function evaluateNextStep({
     draft,
     mutation,
     mutationResult,
-    decision,
     analysis,
     serviceConfidence
 }) {
@@ -38,9 +37,15 @@ export function evaluateNextStep({
     };
 
     // ── Extract draft state ──
-    const draftData = draft?.structured_data_json || analysis?.event_draft?.structured_data || {};
-    const draftServices = draft?.services || analysis?.selected_services || [];
-    const draftStatus = draft?.draft_status || 'none';
+    const draftData = draft?.structured_data_json || {
+        date: draft?.data_eveniment,
+        location: draft?.locatie,
+        celebrant: draft?.nume_sarbatorit,
+        time: draft?.ora_eveniment
+    } || analysis?.event_draft?.structured_data || {};
+    
+    const draftServices = (draft?.servicii_cerute || draft?.services || analysis?.selected_services || []).map(s => typeof s === 'string' ? s : s.role_key).filter(Boolean);
+    const draftStatus = draft?.status || draft?.draft_status || 'none';
 
     // ── Critical fields tracking ──
     const criticalFields = [

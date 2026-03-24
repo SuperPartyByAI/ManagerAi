@@ -19,12 +19,18 @@ export async function GET() {
   try {
     const notebooks: Record<string, unknown>[] = [];
     
-    // 1. Fetch ALL active conversations using the unprotected last_message_at column bypass
+    // 1. Fetch MOST RECENT 500 conversations
+    console.log('[API/Notebooks] Fetching recent conversations...');
     const { data: recentConvs, error: convErr } = await supabase.from('conversations')
       .select('client_id, last_message_at')
-      .order('last_message_at', { ascending: false });
+      .order('last_message_at', { ascending: false })
+      .limit(500);
       
-    if (convErr) throw convErr;
+    if (convErr) {
+        console.error('[API/Notebooks] Error fetching conversations:', convErr.message);
+        throw convErr;
+    }
+    console.log(`[API/Notebooks] Found ${recentConvs?.length || 0} recent conversations.`);
 
     const uniqueClientIds: string[] = [];
     const lastMessageMap = new Map<string, string>();
@@ -61,14 +67,49 @@ export async function GET() {
             if (data) cleanNotebooksRaw.push(...data);
         }
         
-        // 3.5. Fetch Event Drafts for these clients
+        // 3.5. Fetch Event Drafts from unified Schema (ai_client_events)
         const eventDraftsRaw: any[] = [];
+        
         for (let i = 0; i < uniqueClientIds.length; i += 200) {
             const chunk = uniqueClientIds.slice(i, i + 200);
-            const { data } = await supabase.from('ai_client_events')
-               .select('id, client_id, status, servicii_cerute, data_eveniment, locatie, ora_eveniment, event_short_id, ocazie, buget_estimat')
+            const { data, error: draftErr } = await supabase.from('ai_client_events')
+               .select('id, client_id, status, servicii_cerute, data_eveniment, ora_eveniment, locatie, updated_at') // Removed non-existent json columns
                .in('client_id', chunk);
-            if (data) eventDraftsRaw.push(...data);
+
+            if (draftErr) {
+                console.error('[API/Notebooks] Error fetching drafts for chunk:', draftErr.message);
+                continue;
+            }
+
+            if (data) {
+                eventDraftsRaw.push(...data.map(d => {
+                    // Resolve structured data from flat columns or metadata in servicii_cerute
+                    // Fallback to flat columns as primary
+                    const structured = {
+                        date: d.data_eveniment,
+                        time: d.ora_eveniment,
+                        location: d.locatie
+                    };
+
+                    // Try to extract more detail from servicii_cerute if stored as metadata
+                    const svc = d.servicii_cerute || [];
+                    const meta = Array.isArray(svc) ? svc.find((s: any) => s.role_key === 'METADATA') : null;
+                    if (meta && meta.payload) {
+                        Object.assign(structured, meta.payload);
+                    }
+
+                    return {
+                        id: d.id,
+                        client_id: d.client_id,
+                        status: d.status,
+                        source: 'ai_client_events',
+                        structured_data_json: structured,
+                        missing_fields_json: meta?.missing_fields || [], 
+                        services: Array.isArray(svc) ? svc.filter((s: any) => s.role_key !== 'METADATA').map((s: any) => s.role_key || s.service_key) : [],
+                        updated_at: d.updated_at
+                    };
+                }));
+            }
         }
         
         const draftMap = new Map<string, any[]>();

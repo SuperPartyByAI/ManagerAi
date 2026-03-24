@@ -1,59 +1,54 @@
 import { normalizeValue } from './normalizePartyFields.mjs';
-import { GeneralPartyFields, BillingFields, ServiceFieldRequirements } from './partyFieldRegistry.mjs';
 
 /**
  * updatePartyDraftFromMessage.mjs
  * 
- * Merges raw LLM extractions (e.g. from the planner/NLP) into the persistent Party Draft.
- * Uses the field registry dictionaries to cleanly categorize data into generalized logic,
- * billing info, or service-specific detail slices.
+ * Merges raw LLM extractions into the persistent Party Draft flat structure.
+ * Only accepts fields that match the definitions within active roles, avoiding hallucinations.
  */
 export function updatePartyDraftFromMessage(partyDraft, rawExtractedData, activeRoles = []) {
     if (!rawExtractedData || typeof rawExtractedData !== 'object') return partyDraft;
 
-    // 1. Update general fields
-    GeneralPartyFields.forEach(field => {
-        if (rawExtractedData[field.key] !== undefined) {
-            const normalized = normalizeValue(field.key, rawExtractedData[field.key], field.type);
-            if (normalized !== null) {
-                partyDraft.date_generale[field.key] = normalized;
-            }
-        }
-    });
+    // Collect all permitted dynamic fields from active roles
+    const permittedFields = new Set([
+        // Allow built-in basic fields just in case
+        'event_type', 'location', 'date', 'time', 'client_name', 'phone_number',
+        'nume_sarbatorit', 'numar_copii', 'locatie_eveniment', 'data_eveniment' // fallback
+    ]);
+    
+    for (const role of activeRoles) {
+        if (!role || !role.constraints) continue;
+        const required = role.constraints.must_collect_fields || [];
+        required.forEach(f => permittedFields.add(f));
+    }
 
-    // 2. Update billing fields
-    BillingFields.forEach(field => {
-        if (rawExtractedData[field.key] !== undefined) {
-            // Assume string unless 'doreste_factura'
-            const type = field.key === 'doreste_factura' ? 'boolean' : 'string';
-            const normalized = normalizeValue(field.key, rawExtractedData[field.key], type);
-            if (normalized !== null) {
-                partyDraft.facturare[field.key] = normalized;
-            }
-        }
-    });
+    // Always permit exclusions and birthday
+    permittedFields.add('exclusions');
+    permittedFields.add('data_nastere_sarbatorit');
 
-    // 3. Update service-specific details selectively for active roles
-    activeRoles.forEach(roleKey => {
-         const specs = ServiceFieldRequirements[roleKey];
-         if (!specs) return;
-         
-         // Init object block if missing
-         if (!partyDraft.detalii_servicii[specs.serviceKey]) {
-             partyDraft.detalii_servicii[specs.serviceKey] = {};
-         }
-         
-         // Loop specific schema requirements for this service
-         Object.keys(specs.detailsSchema).forEach(detailKey => {
-             if (rawExtractedData[detailKey] !== undefined) {
-                 const expectedType = specs.detailsSchema[detailKey];
-                 const normalized = normalizeValue(detailKey, rawExtractedData[detailKey], expectedType);
-                 if (normalized !== null) {
-                     partyDraft.detalii_servicii[specs.serviceKey][detailKey] = normalized;
+    // Prepare flat structured data object
+    if (!partyDraft.structured_data_json) {
+        partyDraft.structured_data_json = {};
+    } else if (typeof partyDraft.structured_data_json === 'string') {
+        try { partyDraft.structured_data_json = JSON.parse(partyDraft.structured_data_json); } catch(e) { partyDraft.structured_data_json = {}; }
+    }
+
+    // Update dynamic fields selectively based on permitted fields
+    for (const [key, val] of Object.entries(rawExtractedData)) {
+         if (permittedFields.has(key)) {
+             if (key === 'exclusions' && Array.isArray(val)) {
+                 partyDraft.structured_data_json.exclusions = val;
+             } else {
+                 const normalized = normalizeValue(key, val, 'string');
+                 if (normalized !== null && normalized !== '') {
+                     partyDraft.structured_data_json[key] = normalized;
                  }
              }
-         });
-    });
+         }
+    }
 
+    // Keep legacy support for a bit so frontend UI doesn't crash completely manually-added data
+    // but mostly everything uses flat structured_data now.
+    
     return partyDraft;
 }

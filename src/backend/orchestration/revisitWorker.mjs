@@ -181,9 +181,12 @@ async function processOneFollowUp(item) {
             : {};
 
         const { data: existingDraft } = await supabase
-            .from('ai_event_drafts')
-            .select('services, event_date, location, guest_count')
-            .eq('conversation_id', conversation_id)
+            .from('ai_client_events')
+            .select('servicii_cerute, data_eveniment, locatie, ora_eveniment')
+            .eq('client_id', convData?.client_id)
+            .eq('status', 'draft')
+            .order('updated_at', { ascending: false })
+            .limit(1)
             .maybeSingle();
 
         const followUpReply = buildFollowUpReply({
@@ -240,7 +243,7 @@ async function markSkipped(id, reason) {
     }).eq('id', id);
 }
 
-function buildFollowUpReply({ followUpReason, missingFields, nextStep, existingDraft }) {
+function buildFollowUpReply({ missingFields, nextStep }) {
     const openers = [
         'Buna! Am observat ca nu am reusit sa finalizam detaliile.',
         'Salut! Revin cu un mesaj scurt legat de cererea dumneavoastra.',
@@ -250,10 +253,9 @@ function buildFollowUpReply({ followUpReason, missingFields, nextStep, existingD
 
     if (missingFields.length > 0) {
         const fieldMap = {
-            event_date: 'data evenimentului',
-            location: 'locatia',
-            guest_count: 'numarul de invitati',
-            event_time: 'ora'
+            data_eveniment: 'data evenimentului',
+            locatie: 'locatia',
+            ora_eveniment: 'ora'
         };
         const missing = missingFields.map(f => fieldMap[f] || f).filter(Boolean).slice(0, 2);
         if (missing.length > 0) {
@@ -308,8 +310,7 @@ async function run() {
         process.exit(0);
     }
 
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    while (true) { // eslint-disable-line no-constant-condition
         try {
             await processDueFollowUps();
         } catch (err) {

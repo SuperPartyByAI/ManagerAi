@@ -74,15 +74,29 @@ export async function GET(request: Request) {
 
     if (err1) throw err1;
 
-    // 2. Fetch AI Event Drafts
-    const { data: drafts, error: err2 } = await supabase
-        .from('ai_event_drafts')
+    // 2. Fetch AI Event Drafts (unified)
+    const { data: draftsRaw, error: err2 } = await supabase
+        .from('ai_client_events')
         .select('*')
-        .eq('conversation_id', actualConvId)
+        .eq('client_id', client_id) // route.ts has client_id in scope
+        .eq('status', 'draft')
         .order('updated_at', { ascending: false })
         .limit(1);
 
     if (err2) throw err2;
+
+    const drafts = (draftsRaw || []).map(d => ({
+        id: d.id,
+        client_id: d.client_id,
+        draft_status: d.status,
+        structured_data_json: {
+            date: d.data_eveniment,
+            time: d.ora_eveniment,
+            location: d.locatie
+        },
+        services: (d.servicii_cerute || []).map((s: any) => s.role_key),
+        updated_at: d.updated_at
+    }));
 
     // 3. Fetch REAl messages (Client & Human Agent & AI if sent)
     const { data: realMessages, error: errReal } = await supabase

@@ -30,7 +30,7 @@ export function detectEventMutation(analysis, existingDraft) {
 
     // No existing draft → this is a create
     if (!existingDraft || !existingDraft.structured_data_json) {
-        if (newServices.length > 0 || eventDraft.structured_data?.date || eventDraft.structured_data?.location) {
+        if (newServices.length > 0 || newData.data_eveniment || newData.locatie || newData.date) {
             return buildMutation({
                 type: 'create_event',
                 confidence: 90,
@@ -41,7 +41,7 @@ export function detectEventMutation(analysis, existingDraft) {
     }
 
     const existingData = existingDraft.structured_data_json || {};
-    const newData = eventDraft.structured_data || {};
+    const newData = eventDraft.structured_data_json || eventDraft.structured_data || {};
     const existingStatus = existingDraft.draft_status || 'active';
 
     // Check for cancellation intent
@@ -55,7 +55,7 @@ export function detectEventMutation(analysis, existingDraft) {
     }
 
     // Check for reactivation (cancelled draft + new activity)
-    if (existingStatus === 'cancelled' && (newServices.length > 0 || newData.date)) {
+    if (existingStatus === 'cancelled' && (newServices.length > 0 || newData.data_eveniment || newData.date)) {
         return buildMutation({
             type: 'reactivate_event',
             confidence: 80,
@@ -63,28 +63,44 @@ export function detectEventMutation(analysis, existingDraft) {
         });
     }
 
-    // Detect field changes
+    // Detect field changes dynamically for any field in newData
     const fieldChanges = [];
+    const monitoredFields = new Set([...Object.keys(existingData), ...Object.keys(newData)]);
 
-    if (newData.date && newData.date !== existingData.date && existingData.date) {
-        fieldChanges.push({ field: 'date', old: existingData.date, new: newData.date });
+    for (const field of monitoredFields) {
+        const oldVal = existingData[field];
+        const newVal = newData[field];
+
+        // Skip if new value is null/empty or same as old
+        if (newVal === null || newVal === undefined || newVal === '' || newVal === 'null') continue;
+        
+        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+            fieldChanges.push({ field, old: oldVal || null, new: newVal });
+        }
     }
-    if (newData.location && newData.location !== existingData.location && existingData.location) {
-        fieldChanges.push({ field: 'location', old: existingData.location, new: newData.location });
-    }
-    if (newData.event_type && newData.event_type !== existingData.event_type && existingData.event_type) {
-        fieldChanges.push({ field: 'event_type', old: existingData.event_type, new: newData.event_type });
-    }
-    if (newData.time && newData.time !== existingData.time && existingData.time) {
-        fieldChanges.push({ field: 'time', old: existingData.time, new: newData.time });
-    }
-    if (newData.guest_count && newData.guest_count !== existingData.guest_count && existingData.guest_count) {
-        fieldChanges.push({ field: 'guest_count', old: existingData.guest_count, new: newData.guest_count });
+
+    // Detect exclusions changes
+    const existingExclusions = existingData.exclusions || [];
+    const newExclusions = analysis.exclusions || eventDraft.exclusions || [];
+    const addedExclusions = newExclusions.filter(x => !existingExclusions.includes(x));
+    
+    if (addedExclusions.length > 0) {
+        fieldChanges.push({ field: 'exclusions', old: existingExclusions, new: [...new Set([...existingExclusions, ...newExclusions])] });
     }
 
     // Single field change → specific mutation type
     if (fieldChanges.length === 1) {
-        const typeMap = { date: 'change_date', location: 'change_location', time: 'change_time', guest_count: 'change_guest_count' };
+        const typeMap = { 
+            data_eveniment: 'change_date', 
+            data_eveniment: 'change_date', 
+            date: 'change_date', 
+            locatie: 'change_location', 
+            locatie: 'change_location', 
+            location: 'change_location', 
+            ora_eveniment: 'change_time', 
+            ora_eveniment: 'change_time', 
+            time: 'change_time' 
+        };
         return buildMutation({
             type: typeMap[fieldChanges[0].field] || 'update_event',
             fieldChanges,
@@ -134,21 +150,7 @@ export function detectEventMutation(analysis, existingDraft) {
         });
     }
 
-    // New data filling in blanks (not a change, just enrichment)
-    const enriched = [];
-    if (newData.date && !existingData.date) enriched.push('date');
-    if (newData.location && !existingData.location) enriched.push('location');
-    if (newData.event_type && !existingData.event_type) enriched.push('event_type');
-
-    if (enriched.length > 0) {
-        return buildMutation({
-            type: 'update_event',
-            fieldChanges: enriched.map(f => ({ field: f, old: null, new: newData[f] })),
-            confidence: 90,
-            reason: `New info provided: ${enriched.join(', ')}`
-        });
-    }
-
+    // No measurable changes in service or fields
     return buildMutation({ type: 'no_mutation', confidence: 100, reason: 'No detectable changes' });
 }
 
@@ -163,6 +165,10 @@ function buildMutation({
     confidence = 70,
     reason = ''
 }) {
+    let statusChange = null;
+    if (type === 'cancel_event') statusChange = 'cancelled';
+    else if (type === 'reactivate_event') statusChange = 'active';
+
     return {
         mutation_type: type,
         target_field: targetField,
@@ -171,9 +177,7 @@ function buildMutation({
         added_services: addedServices,
         removed_services: removedServices,
         field_changes: fieldChanges,
-        event_status_change: type === 'cancel_event' ? 'cancelled'
-            : type === 'reactivate_event' ? 'active'
-            : null,
+        event_status_change: statusChange,
         mutation_confidence: confidence,
         needs_review: confidence < 60 || type === 'cancel_event',
         mutation_reason: reason
