@@ -67,13 +67,15 @@ export default function CopilotPage() {
   const [middlePanelMode, setMiddlePanelMode] = useState<"notebook" | "liveagent">("notebook");
   // Inițializăm MEREU cu "whatsapp" pentru a evita hydration mismatch (SSR vs client).
   // Valoarea din localStorage e restaurată în useEffect (client-only).
-  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "aiconfig" | "notebook">("whatsapp");
+  const [currentView, setCurrentView] = useState<"whatsapp" | "roles" | "collaborators" | "employees" | "events" | "costumes" | "vertex" | "aiconfig" | "notebook" | "sessions">("whatsapp");
 
   // Restaurare tab din localStorage după mount (client-only) + salvare la fiecare navigare
   useEffect(() => {
     const saved = localStorage.getItem("superparty_admin_view");
-    if (saved && ["whatsapp","roles","collaborators","employees","events","costumes","vertex","aiconfig","notebook"].includes(saved)) {
-      setCurrentView(saved as any);
+    const validViews = ["whatsapp","roles","collaborators","employees","events","costumes","vertex","aiconfig","notebook","sessions"] as const;
+    type ValidView = typeof validViews[number];
+    if (saved && (validViews as readonly string[]).includes(saved)) {
+      setCurrentView(saved as ValidView);
     }
   }, []);
 
@@ -81,6 +83,78 @@ export default function CopilotPage() {
     localStorage.setItem("superparty_admin_view", currentView);
   }, [currentView]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // --- STATE: QR Session Management ---
+  type WaSession = { sessionId: string; status: string; qrCode: string | null; phoneNumber: string | null };
+  const [waSessions, setWaSessions] = useState<WaSession[]>([]);
+  const [qaSessionInput, setQaSessionInput] = useState(''); // Nume brand
+  const [qaSessionIdInput, setQaSessionIdInput] = useState(''); // Session ID
+  const [qaLoading, setQaLoading] = useState(false);
+  const [qaError, setQaError] = useState<string | null>(null);
+  const [qaVerifyResult, setQaVerifyResult] = useState<Record<string, unknown> | null>(null);
+  const [qaPollingId, setQaPollingId] = useState<string | null>(null);
+
+  // Fetch lista sesiuni WA
+  const fetchWaSessions = async () => {
+    try {
+      const res = await fetch('/api/wa-sessions', { cache: 'no-store' });
+      const data = await res.json();
+      setWaSessions(data.sessions || []);
+    } catch { /* ignore */ }
+  };
+
+  // Polling automatizat când avem o sesiune în AWAITING_QR
+  useEffect(() => {
+    if (currentView !== 'sessions') return;
+    fetchWaSessions();
+    const interval = setInterval(fetchWaSessions, 3000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentView]);
+
+  const startWaSession = async () => {
+    const sessionId = qaSessionIdInput.trim() || `wa_${qaSessionInput.trim().toLowerCase().replace(/\s+/g, '_')}`;
+    const sessionLabel = qaSessionInput.trim();
+    if (!sessionLabel) { setQaError('Completează Numele Brandului!'); return; }
+    setQaError(null);
+    setQaLoading(true);
+    setQaVerifyResult(null);
+    try {
+      const res = await fetch('/api/wa-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, sessionLabel }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setQaError(data.error || 'Eroare necunoscută'); return; }
+      setQaPollingId(sessionId);
+      await fetchWaSessions();
+    } catch(e) {
+      setQaError(String(e));
+    } finally {
+      setQaLoading(false);
+    }
+  };
+
+  const logoutWaSession = async (sessionId: string) => {
+    await fetch('/api/wa-sessions', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId }),
+    });
+    await fetchWaSessions();
+  };
+
+  const verifyFirstClient = async (brandKey: string) => {
+    try {
+      const res = await fetch(`/api/admin/crm/clients?brand_key=${encodeURIComponent(brandKey)}&limit=1`, { cache: 'no-store' });
+      if (!res.ok) { setQaVerifyResult({ error: 'Nu am putut verifica DB-ul' }); return; }
+      const data = await res.json();
+      setQaVerifyResult(data);
+    } catch(e) {
+      setQaVerifyResult({ error: String(e) });
+    }
+  };
 
   const [showAddParty, setShowAddParty] = useState(false);
   const [availableRoles, setAvailableRoles] = useState<RoleDef[]>([]);
@@ -583,6 +657,7 @@ export default function CopilotPage() {
             { key: "events", icon: "📅", label: "Evenimente", color: "purple" },
             { key: "costumes", icon: "🎭", label: "Costume", color: "pink" },
             { key: "aiconfig", icon: "⚙️", label: "Config AI", color: "cyan" },
+            { key: "sessions", icon: "📱", label: "Sesiuni WA", color: "green" },
             { key: "vertex", icon: "🔧", label: "Vertex", color: "slate" },
           ] as { key: string; icon: string; label: string; color: string }[]).map(({ key, icon, label }) => (
             <button
@@ -1321,6 +1396,139 @@ export default function CopilotPage() {
         {currentView === "notebook" && (
           <div className="w-full h-full overflow-y-auto">
             <ClientsNotebook />
+          </div>
+        )}
+
+        {/* =========================================================
+            SESIUNI WA — QR Management Secvențial
+            ========================================================= */}
+        {currentView === "sessions" && (
+          <div className="w-full h-full overflow-y-auto p-6 space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center text-2xl">📱</div>
+              <div>
+                <h2 className="text-lg font-bold">Conectare Sesiuni WhatsApp</h2>
+                <p className="text-xs text-[var(--color-dim)]">Conectează fiecare număr pe rând. Clienții vor fi etichetați automat [Brand] 01, [Brand] 02...</p>
+              </div>
+            </div>
+
+            {/* Formular Sesiune Nouă */}
+            <div className="glass-panel rounded-2xl p-5 space-y-4">
+              <h3 className="font-bold text-sm text-green-400 flex items-center gap-2">➕ Pornește Sesiune Nouă</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider text-[var(--color-dim)]">Numele Brandului *</label>
+                  <input
+                    id="wa-session-label"
+                    type="text"
+                    placeholder="ex: Superparty"
+                    value={qaSessionInput}
+                    onChange={e => setQaSessionInput(e.target.value)}
+                    className="w-full bg-black/40 border border-[var(--color-border)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-green-500/50 text-white"
+                  />
+                  <p className="text-[10px] text-[var(--color-dim)]">Clienții vor fi salvați ca: <span className="text-green-400 font-bold">{qaSessionInput || 'Brand'} 01</span>, <span className="text-green-400 font-bold">{qaSessionInput || 'Brand'} 02</span>...</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider text-[var(--color-dim)]">Session ID (opțional)</label>
+                  <input
+                    id="wa-session-id"
+                    type="text"
+                    placeholder={`wa_${(qaSessionInput || 'brand').toLowerCase().replace(/\s+/g, '_')}`}
+                    value={qaSessionIdInput}
+                    onChange={e => setQaSessionIdInput(e.target.value)}
+                    className="w-full bg-black/40 border border-[var(--color-border)] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-green-500/50 text-white"
+                  />
+                  <p className="text-[10px] text-[var(--color-dim)]">Lăsă gol → se generează automat din Nume Brand</p>
+                </div>
+              </div>
+              {qaError && (
+                <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs px-3 py-2 rounded-xl">⚠️ {qaError}</div>
+              )}
+              <button
+                id="btn-start-wa-session"
+                onClick={startWaSession}
+                disabled={qaLoading || !qaSessionInput.trim()}
+                className="w-full py-2.5 rounded-xl font-bold text-sm bg-green-500/20 border border-green-500/40 text-green-400 hover:bg-green-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {qaLoading ? (
+                  <><div className="w-4 h-4 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />Se pornește...</>
+                ) : (
+                  <>📱 Generează QR pentru <strong>{qaSessionInput || '...'}</strong></>
+                )}
+              </button>
+            </div>
+
+            {/* Lista Sesiuni Active */}
+            <div className="glass-panel rounded-2xl p-5 space-y-3">
+              <h3 className="font-bold text-sm text-white/80 flex items-center gap-2">
+                📡 Sesiuni Active
+                <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full">{waSessions.length}</span>
+                <button onClick={fetchWaSessions} className="ml-auto text-[10px] text-[var(--color-dim)] hover:text-white underline">🔄 Refresh</button>
+              </h3>
+              {waSessions.length === 0 ? (
+                <p className="text-xs text-[var(--color-dim)] text-center py-4">Nicio sesiune activă. Pornește una mai sus.</p>
+              ) : (
+                <div className="space-y-3">
+                  {waSessions.map((sess) => {
+                    const statusColors: Record<string, string> = {
+                      CONNECTED: 'bg-green-500/20 text-green-400 border-green-500/40',
+                      AWAITING_QR: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40 animate-pulse',
+                      STARTING: 'bg-blue-500/20 text-blue-400 border-blue-500/40',
+                      DISCONNECTED: 'bg-red-500/20 text-red-400 border-red-500/40',
+                    };
+                    const sc = statusColors[sess.status] || 'bg-white/10 text-white/60 border-white/20';
+                    const brandKey = sess.sessionId.replace('wa_', '').toUpperCase();
+                    return (
+                      <div key={sess.sessionId} className="bg-black/30 border border-[var(--color-border)] rounded-xl p-4 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <div className="font-bold text-sm">{sess.sessionId}</div>
+                            {sess.phoneNumber && <div className="text-[10px] text-[var(--color-dim)]">📞 {sess.phoneNumber}</div>}
+                          </div>
+                          <span className={`text-[10px] px-2 py-1 rounded-lg border font-bold uppercase ${sc}`}>{sess.status}</span>
+                          <button
+                            onClick={() => logoutWaSession(sess.sessionId)}
+                            className="text-[10px] px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all"
+                          >Logout</button>
+                        </div>
+
+                        {/* QR Code Display */}
+                        {sess.status === 'AWAITING_QR' && sess.qrCode && (
+                          <div className="flex flex-col items-center gap-3 py-4">
+                            <div className="text-xs text-yellow-400 font-bold animate-pulse">📸 Scanează QR-ul din aplicația WhatsApp</div>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={sess.qrCode} alt="QR Code WhatsApp" className="w-56 h-56 rounded-xl border-4 border-yellow-500/40 shadow-lg shadow-yellow-500/20" />
+                            <div className="text-[10px] text-[var(--color-dim)] text-center">QR expiră în ~60s. Se reîmprospătează automat.</div>
+                          </div>
+                        )}
+
+                        {/* Verificare Primul Client */}
+                        {sess.status === 'CONNECTED' && (
+                          <div className="flex items-center gap-3">
+                            <div className="text-xs text-green-400 flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-green-400"></span>
+                              Conectat! Primul contact scananat va fi înregistrat ca <strong>{brandKey.charAt(0) + brandKey.slice(1).toLowerCase()} 01</strong>
+                            </div>
+                            <button
+                              onClick={() => verifyFirstClient(brandKey)}
+                              className="ml-auto text-[10px] px-2 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 hover:bg-purple-500/20 transition-all"
+                            >🔍 Verifică DB</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Verify Result Panel */}
+            {qaVerifyResult && (
+              <div className="glass-panel rounded-2xl p-4">
+                <h3 className="font-bold text-xs text-purple-400 mb-2">🔍 Rezultat Verificare Supabase</h3>
+                <pre className="text-[10px] text-white/70 whitespace-pre-wrap bg-black/40 rounded-xl p-3">{JSON.stringify(qaVerifyResult, null, 2)}</pre>
+              </div>
+            )}
           </div>
         )}
 

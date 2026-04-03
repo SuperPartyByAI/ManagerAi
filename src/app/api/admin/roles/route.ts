@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
     const { data, error } = await supabase
       .from("ai_knowledge_base")
       .select("*")
+      .eq("brand_identifier", brand)
       .or('category.eq.rol,knowledge_key.ilike.role_%')
       .order("created_at", { ascending: false });
 
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
        title: kb.answer_template?.split('\n')[0] || kb.knowledge_key,
        content: kb.answer_template || '',
        category: kb.category,
-       brand_key: brand,
+       brand_identifier: kb.brand_identifier || brand,
        is_active: kb.active,
        policy_config: kb.policy_config || {}
     })) || [];
@@ -40,7 +41,7 @@ export async function PUT(req: NextRequest) {
     const { id, title, policy_config, is_active } = await req.json();
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-    const updates: any = { updated_at: new Date().toISOString() };
+    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (policy_config !== undefined) updates.policy_config = policy_config;
     if (is_active !== undefined) updates.active = is_active;
     
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
         knowledge_key: knowledge_key,
         category: 'rol',
         answer_template: title,
+        brand_identifier: brand || "GLOBAL",
         policy_config: policy_config,
         active: true,
         approval_status: 'approved'
