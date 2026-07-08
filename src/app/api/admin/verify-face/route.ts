@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
+import { VertexAI } from "@google-cloud/vertexai";
 
-/**
- * POST /api/admin/verify-face
- * 
- * Receives two base64 images (ID card + selfie) and uses Gemini Flash Vision
- * to verify:
- * 1. Is the ID card a real physical document? (not a photo of a screen)
- * 2. Is the selfie a live person? (not a photo of a photo)
- * 3. Are both images showing the SAME person?
- * 
- * Returns: { verified: boolean, score: number, reason: string, details: {...} }
- */
+const project = process.env.GOOGLE_CLOUD_PROJECT || 'superparty-vertex-ai';
+const location = 'europe-west1';
+const textModel = 'gemini-2.5-flash-lite';
+const vertexAiOptions = { project: project, location: location };
+const vertexAI = new VertexAI(vertexAiOptions);
+
 export async function POST(req: Request) {
     try {
         const { idCardBase64, selfieBase64 } = await req.json();
@@ -21,18 +17,6 @@ export async function POST(req: Request) {
                 { status: 400 }
             );
         }
-
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            return NextResponse.json(
-                { error: "GEMINI_API_KEY not configured" },
-                { status: 500 }
-            );
-        }
-
-        // Use Gemini Flash with vision capabilities
-        const model = "gemini-2.5-flash-lite";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
         const prompt = `You are an EXTREMELY STRICT identity verification security system. You must protect against fraud. Analyze these two images with maximum suspicion.
 
@@ -115,48 +99,39 @@ RESPOND ONLY with valid JSON, no markdown, no extra text:
   "overall_reason": "<brief summary in Romanian>"
 }`;
 
-        const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        parts: [
-                            { text: prompt },
-                            {
-                                inline_data: {
-                                    mime_type: "image/jpeg",
-                                    data: idCardBase64.replace(/^data:image\/[a-z]+;base64,/, ""),
-                                },
-                            },
-                            {
-                                inline_data: {
-                                    mime_type: "image/jpeg",
-                                    data: selfieBase64.replace(/^data:image\/[a-z]+;base64,/, ""),
-                                },
-                            },
-                        ],
-                    },
-                ],
-                generationConfig: {
-                    temperature: 0.05,
-                    maxOutputTokens: 1024,
-                },
-            }),
+        const generativeModel = vertexAI.getGenerativeModel({
+            model: textModel,
+            generationConfig: {
+                maxOutputTokens: 1024,
+                temperature: 0.05,
+            },
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error("[VERIFY-FACE] Gemini error:", errorText);
-            return NextResponse.json(
-                { error: `Gemini API error: ${response.status}` },
-                { status: 500 }
-            );
-        }
+        const request = {
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        { text: prompt },
+                        {
+                            inlineData: {
+                                mimeType: "image/jpeg",
+                                data: idCardBase64.replace(/^data:image\/[a-z]+;base64,/, ""),
+                            },
+                        },
+                        {
+                            inlineData: {
+                                mimeType: "image/jpeg",
+                                data: selfieBase64.replace(/^data:image\/[a-z]+;base64,/, ""),
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
 
-        const data = await response.json();
-        const text =
-            data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        const response = await generativeModel.generateContent(request);
+        const text = response.response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
         // Parse JSON from Gemini response
         let result;
@@ -205,3 +180,4 @@ RESPOND ONLY with valid JSON, no markdown, no extra text:
         return NextResponse.json({ error: msg }, { status: 500 });
     }
 }
+

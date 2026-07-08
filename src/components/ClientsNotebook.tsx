@@ -102,7 +102,11 @@ export default function ClientsNotebook() {
     }
   }, []);
 
-  useEffect(() => { fetchClients(); }, [fetchClients]);
+  useEffect(() => {
+    fetchClients();
+    const iv = setInterval(fetchClients, 30000);
+    return () => clearInterval(iv);
+  }, [fetchClients]);
   console.log("[ClientsNotebook] Toți clienții primiți:", clients.length);
 
   // Când schimbăm clientul deschis, încărcăm chat-ul automat
@@ -424,72 +428,114 @@ export default function ClientsNotebook() {
                         <div style={{ marginTop: "20px", background: "rgba(245,158,11,0.05)", borderRadius: "12px", border: "1px solid rgba(245,158,11,0.3)", padding: "20px" }}>
                           <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#fcd34d", margin: "0 0 12px 0", textTransform: "uppercase" }}>🚧 Discuții Deschise (Ciorne Incomplete)</h4>
                           {(() => {
-                              const localDrafts = (client.event_drafts || []).filter((d: any) => !['active', 'completed', 'confirmed', 'booked'].includes(d.status));
+                              const localDrafts = (client.event_drafts || []).filter((d: any) => !['completed', 'confirmed', 'booked'].includes(d.status));
                               if (localDrafts.length === 0) {
                                   return <div style={{ color: "#9ca3af", fontSize: "14px" }}>Nu există nicio ciornă activă pentru acest client.</div>;
                               }
-                              return localDrafts.map((draft, idx) => {
-                                  // Extract from METADATA role if available
-                                  const metadataRole = (draft.servicii_cerute || []).find((s: any) => s.role_key === 'METADATA');
-                                  const metadataPayload = metadataRole?.payload || {};
-
-                                  // Combine flat columns with metadata
-                                  const viewFields: Record<string, any> = {
-                                      data_eveniment: draft.data_eveniment,
-                                      ora_eveniment: draft.ora_eveniment,
-                                      locatie: draft.locatie,
-                                      nume_sarbatorit: draft.nume_sarbatorit,
-                                      ...metadataPayload
-                                  };
-
-                                  // Deduplicate semantic overlaps (e.g. date vs data_eveniment)
-                                  if (viewFields.date && viewFields.data_eveniment) delete viewFields.data_eveniment;
-                                  if (viewFields.location && viewFields.locatie) delete viewFields.locatie;
-                                  if (viewFields.time && viewFields.ora_eveniment) delete viewFields.ora_eveniment;
-                                  if (viewFields.celebrant && viewFields.nume_sarbatorit) delete viewFields.nume_sarbatorit;
-                                  if (viewFields['Nume sarbatorit'] && viewFields.nume_sarbatorit) delete viewFields.nume_sarbatorit;
-                                  if (viewFields['Locatie'] && viewFields.locatie) delete viewFields.locatie;
-                                  if (viewFields['Locatie'] && viewFields.location) delete viewFields.location;
-                                  if (viewFields['Data'] && viewFields.data_eveniment) delete viewFields.data_eveniment;
+                              return localDrafts.map((draft: any, idx: number) => {
+                                  const mustCollect: string[] = draft.must_collect_fields || ['date', 'location', 'duration'];
+                                  const sdata = (draft.structured_data_json && typeof draft.structured_data_json === 'object' && !Array.isArray(draft.structured_data_json))
+                                      ? draft.structured_data_json as Record<string, unknown>
+                                      : {};
                                   
-                                  // Clean falsy values
-                                  Object.keys(viewFields).forEach(k => {
-                                      if (!viewFields[k]) delete viewFields[k];
-                                  });
-                                  
+                                  const pct = draft.completeness_pct ?? Math.round(
+                                      (mustCollect.filter((f: string) => {
+                                          const v = sdata[f]; return v !== undefined && v !== null && String(v).trim().length > 0;
+                                      }).length / Math.max(mustCollect.length, 1)) * 100
+                                  );
+                                  const isComplete = pct >= 100;
                                   const roles = (draft.servicii_cerute || []).filter((s: any) => s.role_key !== 'METADATA');
+                                  const roleTitle = roles[0]?.role_title || draft.role_key || 'Animație';
                                   
+                                  // Extra fields from structured_data_json that are NOT in must_collect
+                                  const extraFields = Object.entries(sdata).filter(([k, v]) =>
+                                      !mustCollect.includes(k) && v && String(v).trim().length > 0
+                                      && !['Personaj','personaj','Personajul Dorit'].includes(k)
+                                  );
+
                                   return (
-                                     <div key={draft.id} style={{ marginBottom: "16px", background: "rgba(0,0,0,0.3)", padding: "14px", borderRadius: "8px", border: "1px solid rgba(245,158,11,0.2)" }}>
-                                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
-                                            <span style={{ color: "#fde68a", fontWeight: "bold" }}>Draft #{idx + 1}</span>
-                                            <span style={{ color: "#fbbf24", fontSize: "12px", background: "rgba(0,0,0,0.4)", padding: "2px 8px", borderRadius: "4px" }}>{draft.status || 'draft'}</span>
+                                     <div key={draft.id} style={{
+                                         marginBottom: "16px", borderRadius: "10px", overflow: "hidden",
+                                         border: isComplete ? "1px solid rgba(16,185,129,0.5)" : "1px solid rgba(245,158,11,0.25)",
+                                         background: isComplete ? "rgba(16,185,129,0.05)" : "rgba(0,0,0,0.3)"
+                                     }}>
+                                         {/* Header */}
+                                         <div style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <div>
+                                                <span style={{ color: isComplete ? "#6ee7b7" : "#fde68a", fontWeight: "bold", marginRight: "8px" }}>
+                                                    {isComplete ? "✅" : "🚧"} {roleTitle}
+                                                </span>
+                                                {!!sdata['Personaj'] && <span style={{ fontSize: "12px", color: "#c4b5fd", background: "rgba(139,92,246,0.2)", padding: "2px 8px", borderRadius: "12px" }}>🎭 {String(sdata['Personaj'] ?? '')}</span>}
+                                                {!!sdata['personaj'] && !sdata['Personaj'] && <span style={{ fontSize: "12px", color: "#c4b5fd", background: "rgba(139,92,246,0.2)", padding: "2px 8px", borderRadius: "12px" }}>🎭 {String(sdata['personaj'] ?? '')}</span>}
+                                            </div>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                                <span style={{ fontSize: "11px", color: isComplete ? "#6ee7b7" : "#fbbf24" }}>{pct}%</span>
+                                                <span style={{ fontSize: "11px", color: "#9ca3af", background: "rgba(0,0,0,0.4)", padding: "2px 8px", borderRadius: "4px" }}>#{idx + 1}</span>
+                                            </div>
                                          </div>
-                                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                                             {Object.entries(viewFields).filter(([_, v]) => v).map(([k, v]) => (
-                                                <div key={k}>
-                                                    <div style={{ fontSize: "11px", color: "#fbbf24" }}>{FIELD_LABELS[k] || k.replace(/_/g, ' ')}</div>
-                                                    <div style={{ fontSize: "13px", color: "#fef3c7" }}>
-                                                        {Array.isArray(v) ? v.join(', ') : String(v)}
-                                                    </div>
-                                                </div>
-                                             ))}
+
+                                         {/* Progress bar */}
+                                         <div style={{ height: "3px", background: "rgba(255,255,255,0.06)" }}>
+                                             <div style={{ height: "100%", width: `${pct}%`, background: isComplete ? "#10b981" : "#f59e0b", transition: "width 0.3s ease" }} />
                                          </div>
-                                         {roles.length > 0 && (
-                                             <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                                                <div style={{ fontSize: "12px", color: "#fcd34d", marginBottom: "8px" }}>📦 Roluri active:</div>
-                                                {roles.map((r: any) => (
-                                                    <div key={r.role_key} style={{ fontSize: "13px", color: "#fef3c7", marginLeft: "10px", marginBottom: "4px" }}>
-                                                        • <b>{r.role_title || r.role_key}</b>
-                                                    </div>
-                                                ))}
+
+                                         <div style={{ padding: "14px" }}>
+                                             {/* Must-collect fields with ✅/⬜ */}
+                                             <div style={{ marginBottom: "12px" }}>
+                                                 <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                     📌 Câmpuri Obligatorii ({mustCollect.filter((f: string) => { const v=sdata[f]; return v&&String(v).trim().length>0; }).length}/{mustCollect.length})
+                                                 </div>
+                                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                                                     {mustCollect.map((field: string) => {
+                                                         const val = sdata[field];
+                                                         const filled = val !== undefined && val !== null && String(val).trim().length > 0;
+                                                         const label = FIELD_LABELS[field] || field.replace(/_/g, ' ');
+                                                         return (
+                                                             <div key={field} style={{
+                                                                 background: filled ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.06)",
+                                                                 border: `1px solid ${filled ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.2)"}`,
+                                                                 borderRadius: "6px", padding: "8px 10px"
+                                                             }}>
+                                                                 <div style={{ fontSize: "10px", color: filled ? "#6ee7b7" : "#f87171", marginBottom: "3px", textTransform: "uppercase" }}>
+                                                                     {filled ? "✅" : "⬜"} {label}
+                                                                 </div>
+                                                                 <div style={{ fontSize: "13px", color: filled ? "#d1fae5" : "#6b7280", fontWeight: filled ? 500 : 400 }}>
+                                                                     {filled ? (Array.isArray(val) ? (val as string[]).join(', ') : String(val)) : <i>lipsă</i>}
+                                                                 </div>
+                                                             </div>
+                                                         );
+                                                     })}
+                                                 </div>
                                              </div>
-                                         )}
+
+                                             {/* Extra detected fields */}
+                                             {extraFields.length > 0 && (
+                                                 <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "10px" }}>
+                                                     <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "6px", textTransform: "uppercase" }}>📋 Date Suplimentare</div>
+                                                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                                                         {extraFields.map(([k, v]) => (
+                                                             <div key={k} style={{ fontSize: "12px", color: "#e0e7ff" }}>
+                                                                 <span style={{ color: "#8b5cf6", marginRight: "4px" }}>{FIELD_LABELS[k] || k.replace(/_/g,' ')}:</span>
+                                                                 {Array.isArray(v) ? (v as string[]).join(', ') : String(v)}
+                                                             </div>
+                                                         ))}
+                                                     </div>
+                                                 </div>
+                                             )}
+
+                                             {/* Complete banner */}
+                                             {isComplete && (
+                                                 <div style={{ marginTop: "12px", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.4)", borderRadius: "6px", padding: "8px 12px", color: "#6ee7b7", fontSize: "13px", textAlign: "center" }}>
+                                                     🎉 Toate câmpurile completate — rezervare gata de confirmat!
+                                                 </div>
+                                             )}
+                                         </div>
                                      </div>
                                   );
                               });
                           })()}
                         </div>
+
                       ) : viewingConfirmed === client.id ? (
                         <div style={{ marginTop: "20px", background: "rgba(16,185,129,0.05)", borderRadius: "12px", border: "1px solid rgba(16,185,129,0.3)", padding: "20px" }}>
                           <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#6ee7b7", margin: "0 0 12px 0", textTransform: "uppercase" }}>✅ Evenimente Rezervate Final</h4>

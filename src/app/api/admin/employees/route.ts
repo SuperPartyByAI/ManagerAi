@@ -1,9 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+// Using MAIN SUPABASE because Android App Auth and Storage connects here!
 const vtx = createClient(
-  process.env.NEXT_PUBLIC_VERTEX_SUPABASE_URL!,
-  process.env.VERTEX_SUPABASE_SERVICE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 // GET: List employees with optional status filter

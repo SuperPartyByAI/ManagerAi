@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const vertexUrl = process.env.NEXT_PUBLIC_VERTEX_SUPABASE_URL || '';
-const vertexKey = process.env.VERTEX_SUPABASE_SERVICE_KEY || '';
-const supabase = createClient(vertexUrl, vertexKey);
+function getVtx() {
+  return createClient(
+    process.env.NEXT_PUBLIC_VERTEX_SUPABASE_URL || process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+    process.env.VERTEX_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || 'fake-key'
+  );
+}
+const supabase = getVtx();
 
 export async function POST(req: NextRequest) {
   try {

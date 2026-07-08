@@ -1,12 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-const vtx = createClient(
-  process.env.NEXT_PUBLIC_VERTEX_SUPABASE_URL!,
-  process.env.VERTEX_SUPABASE_SERVICE_KEY!
-);
+export const dynamic = 'force-dynamic';
+
+function getVtx() {
+  return createClient(
+    process.env.NEXT_PUBLIC_VERTEX_SUPABASE_URL || process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+    process.env.VERTEX_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || 'fake-key'
+  );
+}
 
 export async function GET() {
+  const vtx = getVtx();
   const { data, error } = await vtx
     .from("collaborators")
     .select("*")
@@ -18,6 +23,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const vtx = getVtx();
   const body = await req.json();
   const { name, phone, brand_key, contact_person, default_location, packages, notes } = body;
   if (!name || !phone || !brand_key) {
@@ -41,6 +47,7 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
+  const vtx = getVtx();
   const body = await req.json();
   const { id, ...updates } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -57,6 +64,7 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const vtx = getVtx();
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });

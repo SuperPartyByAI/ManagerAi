@@ -2,10 +2,13 @@ export const dynamic = 'force-dynamic';
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-const vtx = createClient(
-  process.env.NEXT_PUBLIC_VERTEX_SUPABASE_URL!,
-  process.env.VERTEX_SUPABASE_SERVICE_KEY!
-);
+function getVtx() {
+  return createClient(
+    process.env.NEXT_PUBLIC_VERTEX_SUPABASE_URL || process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+    process.env.VERTEX_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || 'fake-key'
+  );
+}
+const vtx = getVtx();
 
 const main = createClient(
   process.env.SUPABASE_URL!,
@@ -26,7 +29,7 @@ export async function GET(req: Request) {
     
     // 2. Fetch from Main Supabase (New AI Agent drafts)
     // Map status 'active' to include 'draft' for the AI table
-    let mainQuery = main.from("ai_client_events").select("event_id, status_eveniment, servicii_cerute, buget_estimat, notes, event_status, created_at, data_evenimentului, ora_evenimentului, localitate, clients(real_phone_e164)");
+    let mainQuery = main.from("ai_client_events").select("id, status, servicii_cerute, buget_estimat, created_at, data_eveniment, ora_eveniment, locatie, structured_data_json, clients(real_phone_e164)");
     if (status !== "all") {
         if (status === 'active') {
             mainQuery = mainQuery.in("status", ["active", "draft"]);
@@ -43,28 +46,62 @@ export async function GET(req: Request) {
     if (vtxRes.error) throw vtxRes.error;
     if (mainRes.error) throw mainRes.error;
 
-    // 3. Normalize and merge
-    const normalizedMain = (mainRes.data || []).map((ev: any) => {
-        const services = (ev.servicii_cerute as Record<string, Record<string, any>>) || {};
-        const firstService = Object.values(services)[0] || {};
-        return {
-            id: ev.event_id || ev.id,
-            client_phone: (ev.clients as any)?.real_phone_e164 || phone || "Unknown",
-            role_title: firstService.role_title || "Serviciu AI",
-            event_details: {
-                ...firstService,
-                date: ev.data_evenimentului,
-                time: ev.ora_evenimentului,
-                location: ev.localitate
-            },
+    // 3. Normalize and merge — expand each service/personaj into a separate event entry
+    const normalizedMain: Record<string, unknown>[] = [];
+    for (const evRaw of (mainRes.data || [])) {
+        const ev = evRaw as Record<string, any>;
+        const clientPhone = (ev.clients as Record<string,string>)?.real_phone_e164 || phone || "Unknown";
+        
+        // Dacă s-a cerut un telefon specific, filtrăm rezultatele din main DB
+        if (phone && clientPhone !== phone && clientPhone !== phone.replace('+', '')) {
+            continue;
+        }
+
+        const sdata = ev.structured_data_json as Record<string, string> || {};
+        const baseEvent = {
+            id: ev.id,
+            client_phone: clientPhone,
             total_amount: ev.buget_estimat || 0,
             notes: ev.notes || "",
-            status: ev.status_eveniment || ev.status || "draft",
+            status: ev.status || "draft",
             event_status: ev.event_status || "new",
             created_at: ev.created_at,
-            source: 'main_supabase'
+            source: 'main_supabase',
+            // Common event details from DB columns + structured_data_json
+            _date: ev.data_eveniment || sdata?.Data || sdata?.date || '',
+            _time: ev.ora_eveniment || sdata?.Ora || sdata?.time || '',
+            _location: ev.locatie || sdata?.Locatie || sdata?.location || ''
         };
-    });
+
+        // servicii_cerute can be array (new format) or object (old format)
+        const svc = ev.servicii_cerute;
+        const servicesArr: any[] = Array.isArray(svc)
+            ? svc.filter((s: any) => s.role_key !== 'METADATA')
+            : Object.values(svc || {});
+
+        if (servicesArr.length === 0) {
+            // No services — push a single blank entry
+            normalizedMain.push({ ...baseEvent, role_title: sdata?.Personaj || 'Serviciu AI', event_details: { date: baseEvent._date, time: baseEvent._time, location: baseEvent._location, ...sdata } });
+        } else {
+            // One entry per personaj/service
+            for (let si = 0; si < servicesArr.length; si++) {
+                const svcItem = servicesArr[si];
+                const payload = svcItem.payload || svcItem;
+                normalizedMain.push({
+                    ...baseEvent,
+                    id: si === 0 ? baseEvent.id : `${baseEvent.id}_${si}`,
+                    role_title: svcItem.role_title || payload['Personajul Dorit'] || payload.personaj || sdata?.Personaj || 'Serviciu AI',
+                    event_details: {
+                        ...sdata,
+                        ...payload,
+                        date: baseEvent._date,
+                        time: baseEvent._time,
+                        location: baseEvent._location
+                    }
+                });
+            }
+        }
+    }
 
     const merged = [...(vtxRes.data || []), ...normalizedMain].sort((a,b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()

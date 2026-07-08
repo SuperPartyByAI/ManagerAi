@@ -7,11 +7,16 @@ type Role = {
   title: string;
   content: string;
   is_active: boolean;
-  brand_key: string;
+  brand_identifier: string;
   policy_config?: any;
 };
 
-/* Parse content into 3 parts for backward compatibility */
+type ConstraintItem = {
+  name: string;
+  required: boolean;
+  niceToHave: boolean;
+};
+
 function parseContent(c: string) {
   const lines = c.split("\n");
   let serviciu = "", taguri = "", detalii = "";
@@ -30,19 +35,13 @@ export default function RolesManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Form State
   const [editedTitle, setEditedTitle] = useState("");
   const [editServiciu, setEditServiciu] = useState("");
   const [editTaguri, setEditTaguri] = useState("");
-  
-  // NOU: Stare Listă pt Drag&Drop în loc de single string cu virgulă
-  const [editDetaliiList, setEditDetaliiList] = useState<string[]>([]);
-  
-  // Custom prompts pentru detaliile obligatorii conectate direct la AI
+  const [constraintItems, setConstraintItems] = useState<ConstraintItem[]>([]);
   const [editCustomPrompts, setEditCustomPrompts] = useState<Record<string, string>>({});
-  
-  // Ref Drag & Drop (useRef pentru stabilitate în timpul drag-ului, fără re-render)
-  const dragRef = useRef<{ from: number; list: string[] } | null>(null);
+
+  const dragRef = useRef<{ from: number; list: ConstraintItem[] } | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const fetchRoles = useCallback(async () => {
@@ -63,67 +62,67 @@ export default function RolesManager() {
   const activeRole = roles.find(r => r.id === activeRoleId) || roles[0] || null;
 
   useEffect(() => {
-    if (activeRole) {
-      setEditedTitle(activeRole.title);
-      
-      const p = parseContent(activeRole.content);
-      const conf = activeRole.policy_config || {};
-      
-      const isJsonReady = Object.keys(conf).length > 0;
-      
-      setEditServiciu(isJsonReady && conf.label ? conf.label : p.serviciu);
-      
-      const tags = Array.from(new Set([
-        ...(conf.triggers?.service_tags || []),
-        ...(conf.triggers?.keywords || []),
-      ]));
-      setEditTaguri(isJsonReady && tags.length > 0 ? tags.join(', ') : p.taguri);
-      
-      const fields = conf.constraints?.must_collect_fields || [];
-      const parsedFields = isJsonReady && fields.length > 0 ? fields : p.detalii.split(",").map((f: string) => f.trim()).filter(Boolean);
-      setEditDetaliiList(parsedFields);
-      
-      const cp = conf.copy_blocks?.custom_prompts || {};
-      setEditCustomPrompts(cp);
-    }
+    if (!activeRole) return;
+    setEditedTitle(activeRole.title);
+    const p = parseContent(activeRole.content);
+    const conf = activeRole.policy_config || {};
+    const isJsonReady = Object.keys(conf).length > 0;
+
+    setEditServiciu(isJsonReady && conf.label ? conf.label : p.serviciu);
+
+    const tags = Array.from(new Set([
+      ...(conf.triggers?.service_tags || []),
+      ...(conf.triggers?.keywords || []),
+    ]));
+    setEditTaguri(isJsonReady && tags.length > 0 ? tags.join(', ') : p.taguri);
+
+    const mustFields: string[] = conf.constraints?.must_collect_fields || [];
+    const niceFields: string[] = conf.constraints?.nice_to_have_fields || [];
+    const allNames = isJsonReady && (mustFields.length > 0 || niceFields.length > 0)
+      ? [...new Set([...mustFields, ...niceFields])]
+      : p.detalii.split(",").map((f: string) => f.trim()).filter(Boolean);
+
+    setConstraintItems(allNames.map(name => ({
+      name,
+      required: mustFields.includes(name) || !isJsonReady,
+      niceToHave: niceFields.includes(name),
+    })));
+
+    setEditCustomPrompts(conf.copy_blocks?.custom_prompts || {});
   }, [activeRole]);
 
   const saveRole = async () => {
     if (!activeRoleId) return;
     setIsSaving(true);
-    
-    // Structurăm noul policy_config
     const newTags = editTaguri.split(",").map(t => t.trim()).filter(Boolean);
-    const newFields = editDetaliiList.map(f => f.trim()).filter(Boolean);
-    
-    const cleanCustomPrompts: Record<string, string> = {};
-    for (const f of newFields) {
-        if (editCustomPrompts[f]) {
-           cleanCustomPrompts[f] = editCustomPrompts[f];
-        }
-    }
-    
+    const mustCollect = constraintItems.filter(c => c.required).map(c => c.name.trim()).filter(Boolean);
+    const niceToHave = constraintItems.filter(c => c.niceToHave && !c.required).map(c => c.name.trim()).filter(Boolean);
+    const allNames = constraintItems.map(c => c.name.trim()).filter(Boolean);
+    const cleanPrompts: Record<string, string> = {};
+    for (const f of allNames) { if (editCustomPrompts[f]) cleanPrompts[f] = editCustomPrompts[f]; }
+
     const policy_config = {
-        label: editServiciu,
-        active: true,
-        priority: activeRole?.policy_config?.priority || 100,
-        triggers: {
-            keywords: newTags,
-            service_tags: activeRole?.policy_config?.triggers?.service_tags || ['generic_tag'],
-            min_confidence: activeRole?.policy_config?.triggers?.min_confidence || 0.35
-        },
-        pricing_rules: activeRole?.policy_config?.pricing_rules || null,
-        constraints: {
-            allow_discounts: activeRole?.policy_config?.constraints?.allow_discounts || false,
-            must_collect_fields: newFields, // Ordinea exacta Drag&Drop e salvata aici
-            must_not_confirm_availability: true,
-            must_not_override_approved_prices: true
-        },
-        copy_blocks: {
-            intro: activeRole?.policy_config?.copy_blocks?.intro || "",
-            upsell: activeRole?.policy_config?.copy_blocks?.upsell || "",
-            custom_prompts: cleanCustomPrompts
-        }
+      label: editServiciu,
+      active: true,
+      priority: activeRole?.policy_config?.priority || 100,
+      triggers: {
+        keywords: newTags,
+        service_tags: activeRole?.policy_config?.triggers?.service_tags || ['generic_tag'],
+        min_confidence: activeRole?.policy_config?.triggers?.min_confidence || 0.35
+      },
+      pricing_rules: activeRole?.policy_config?.pricing_rules || null,
+      constraints: {
+        allow_discounts: activeRole?.policy_config?.constraints?.allow_discounts || false,
+        must_collect_fields: mustCollect,
+        nice_to_have_fields: niceToHave,
+        must_not_confirm_availability: true,
+        must_not_override_approved_prices: true
+      },
+      copy_blocks: {
+        intro: activeRole?.policy_config?.copy_blocks?.intro || "",
+        upsell: activeRole?.policy_config?.copy_blocks?.upsell || "",
+        custom_prompts: cleanPrompts
+      }
     };
 
     try {
@@ -134,7 +133,7 @@ export default function RolesManager() {
       });
       if (res.ok) {
         setRoles(prev => prev.map(r => r.id === activeRoleId ? { ...r, title: editedTitle, policy_config } : r));
-        alert("Salvat cu succes! Ordinea Drag & Drop a fost fixată, iar AI-ul o va urma cu strictețe!");
+        alert(`Salvat! 🔴 Câmpuri obligatorii: ${mustCollect.length} | 🟡 Bine de avut: ${niceToHave.length}`);
       } else {
         const d = await res.json();
         alert("Eroare la Salvare: " + (d.error || "Necunoscută"));
@@ -144,33 +143,28 @@ export default function RolesManager() {
 
   const createRole = async () => {
     const policy_config = {
-        label: "Descriere serviciu nou...",
-        triggers: { keywords: ["tag1", "tag2"], service_tags: ["new_service"] },
-        constraints: { must_collect_fields: ["Data Evenimentului", "Locația"] },
-        copy_blocks: { custom_prompts: {} }
+      label: "Descriere serviciu nou...",
+      triggers: { keywords: ["tag1", "tag2"], service_tags: ["new_service"] },
+      constraints: { must_collect_fields: ["Data Evenimentului", "Locația"], nice_to_have_fields: [] },
+      copy_blocks: { custom_prompts: {} }
     };
-    
     const res = await fetch("/api/admin/roles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ brand: "GLOBAL", title: "Rol Nou", policy_config }),
+      body: JSON.stringify({ brand_identifier: "GLOBAL", title: "Rol Nou", policy_config }),
     });
-    
     if (res.ok) {
-       const data = await res.json();
-       if (data.source) {
-          setRoles(prev => [data.source, ...prev]);
-          setActiveRoleId(data.source.id);
-       }
+      const data = await res.json();
+      if (data.source) { setRoles(prev => [data.source, ...prev]); setActiveRoleId(data.source.id); }
     }
   };
 
   const deleteRole = async (id: string) => {
     if (!confirm("Sigur vrei să ștergi acest rol DEFINITIV din Creierul AI?")) return;
-    const res = await fetch(`/api/admin/roles`, { 
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id })
+    const res = await fetch(`/api/admin/roles`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id })
     });
     if (res.ok) {
       setRoles(prev => prev.filter(r => r.id !== id));
@@ -179,66 +173,60 @@ export default function RolesManager() {
   };
 
   const tagList = editTaguri.split(",").map(t => t.trim()).filter(Boolean);
+  const handleCustomPromptChange = (field: string, val: string) => setEditCustomPrompts(prev => ({ ...prev, [field]: val }));
 
-  const handleCustomPromptChange = (field: string, val: string) => {
-      setEditCustomPrompts(prev => ({ ...prev, [field]: val }));
-  };
-
-  // Drag and Drop Handlers — folosim useRef pentru stabilitate
-  const dragStart = (index: number) => {
-    dragRef.current = { from: index, list: [...editDetaliiList] };
-    setDragOverIndex(index);
-  };
-
+  const dragStart = (index: number) => { dragRef.current = { from: index, list: [...constraintItems] }; setDragOverIndex(index); };
   const dragEnter = (index: number) => {
     if (!dragRef.current || dragRef.current.from === index) return;
     setDragOverIndex(index);
-    // Actualizăm lista vizual în timp real din ref-ul inițial
     const newList = [...dragRef.current.list];
     const [moved] = newList.splice(dragRef.current.from, 1);
     newList.splice(index, 0, moved);
     dragRef.current = { from: index, list: newList };
-    setEditDetaliiList(newList);
+    setConstraintItems(newList);
   };
+  const dragEnd = () => { dragRef.current = null; setDragOverIndex(null); };
 
-  const dragEnd = () => {
-    dragRef.current = null;
-    setDragOverIndex(null);
-  };
+  const addConstraint = () => setConstraintItems([...constraintItems, { name: `Câmp Nou ${constraintItems.length + 1}`, required: false, niceToHave: false }]);
 
-  const addConstraint = () => {
-    setEditDetaliiList([...editDetaliiList, `Câmp Nou ${editDetaliiList.length + 1}`]);
-  };
-  
-  const updateConstraint = (oldName: string, newName: string, idx: number) => {
-    const list = [...editDetaliiList];
-    list[idx] = newName;
-    setEditDetaliiList(list);
-    
+  const updateConstraintName = (oldName: string, newName: string, idx: number) => {
+    const list = [...constraintItems];
+    list[idx] = { ...list[idx], name: newName };
+    setConstraintItems(list);
     if (oldName !== newName) {
       setEditCustomPrompts(prev => {
         const d = { ...prev };
-        if (d[oldName] !== undefined) {
-          d[newName] = d[oldName];
-          delete d[oldName];
-        }
+        if (d[oldName] !== undefined) { d[newName] = d[oldName]; delete d[oldName]; }
         return d;
       });
     }
   };
 
-  const removeConstraint = (idx: number) => {
-    const list = [...editDetaliiList];
-    const removedName = list[idx];
-    list.splice(idx, 1);
-    setEditDetaliiList(list);
-    
-    setEditCustomPrompts(prev => {
-        const d = { ...prev };
-        delete d[removedName];
-        return d;
-    });
+  // Mutual exclusive: Obligatoriu XOR Bine de Avut
+  const toggleRequired = (idx: number) => {
+    const list = [...constraintItems];
+    const current = list[idx].required;
+    list[idx] = { ...list[idx], required: !current, niceToHave: false };
+    setConstraintItems(list);
   };
+
+  const toggleNiceToHave = (idx: number) => {
+    const list = [...constraintItems];
+    const current = list[idx].niceToHave;
+    list[idx] = { ...list[idx], niceToHave: !current, required: false };
+    setConstraintItems(list);
+  };
+
+  const removeConstraint = (idx: number) => {
+    const list = [...constraintItems];
+    const removedName = list[idx].name;
+    list.splice(idx, 1);
+    setConstraintItems(list);
+    setEditCustomPrompts(prev => { const d = { ...prev }; delete d[removedName]; return d; });
+  };
+
+  const mandatoryCount = constraintItems.filter(c => c.required).length;
+  const niceCount = constraintItems.filter(c => c.niceToHave && !c.required).length;
 
   if (isLoading) {
     return (
@@ -325,9 +313,7 @@ export default function RolesManager() {
                 {tagList.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {tagList.map(tag => (
-                      <span key={tag} className="text-[11px] text-blue-300 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20 font-medium tracking-wide">
-                        {tag}
-                      </span>
+                      <span key={tag} className="text-[11px] text-blue-300 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20 font-medium tracking-wide">{tag}</span>
                     ))}
                   </div>
                 )}
@@ -335,69 +321,130 @@ export default function RolesManager() {
 
               <hr className="border-[var(--color-border)] opacity-50" />
 
-              {/* 3. Detalii Obligatorii (Drag & Drop) */}
+              {/* 3. Constrângeri cu DOUĂ niveluri */}
               <div className="bg-purple-900/10 p-5 rounded-2xl border border-purple-500/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl">📌</span>
-                  <h3 className="font-bold uppercase tracking-wider text-sm text-purple-300">Constangeri & Formula de Întrebare</h3>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📌</span>
+                    <h3 className="font-bold uppercase tracking-wider text-sm text-purple-300">Constangeri & Formula de Întrebare</h3>
+                  </div>
+                  <div className="flex gap-2 text-[10px] shrink-0">
+                    <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-bold">🔴 {mandatoryCount} Obligatorii</span>
+                    <span className="px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 font-bold">🟡 {niceCount} Bine de Avut</span>
+                  </div>
                 </div>
-                <p className="text-xs text-[var(--color-dim)] mb-4">
-                   Ordinea vizuală stabilită mai jos dictează SECVENȚA EXACTĂ (1 by 1) în care asistentul virtual va adresa întrebările clientului. 
-                   <strong className="block mt-1 text-purple-300">Tip: Trageți de carduri cu mouse-ul (Drag & Drop) pentru a reordona prioritățile sistemului!</strong>
+                <p className="text-xs text-[var(--color-dim)] mb-2">
+                  Ordinea vizuală stabilită mai jos dictează SECVENȚA EXACTĂ (1 by 1) în care asistentul virtual va adresa întrebările clientului.
+                  <strong className="block mt-1 text-purple-300">Tip: Trageți de carduri cu mouse-ul (Drag & Drop) pentru a reordona prioritățile sistemului!</strong>
                 </p>
-                
+
+                {/* Legend */}
+                <div className="flex flex-wrap gap-4 text-[10px] mb-4 p-3 bg-black/30 rounded-lg border border-white/5">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded bg-red-500 border border-red-400 flex items-center justify-center text-[9px] font-black text-white">✓</span>
+                    <span className="text-red-300 font-bold">Obligatoriu</span> <span className="text-gray-500">= evenimentul NU trece la Confirmate fără el</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded bg-yellow-500 border border-yellow-400 flex items-center justify-center text-[9px] font-black text-white">✓</span>
+                    <span className="text-yellow-300 font-bold">Bine de Avut</span> <span className="text-gray-500">= AI îl colectează dacă poate, nu blochează</span>
+                  </span>
+                </div>
+
                 <div className="space-y-3 mb-4">
-                  {editDetaliiList.map((d, index) => (
-                    <div 
+                  {constraintItems.map((item, index) => (
+                    <div
                       key={`constraint-${index}`}
                       draggable
                       onDragStart={() => dragStart(index)}
                       onDragEnter={() => dragEnter(index)}
                       onDragEnd={dragEnd}
                       onDragOver={(e) => e.preventDefault()}
-                      className={`flex flex-col gap-2 p-3 bg-black/40 rounded-xl border ${dragOverIndex === index ? 'border-purple-500 opacity-60 scale-[0.98]' : 'border-white/10'} shadow-lg cursor-grab active:cursor-grabbing transition-all hover:bg-white/5 delay-75 group`}
+                      className={`flex flex-col gap-2 p-3 bg-black/40 rounded-xl border shadow-lg cursor-grab active:cursor-grabbing transition-all hover:bg-white/5 delay-75 group ${
+                        dragOverIndex === index ? 'border-purple-500 opacity-60 scale-[0.98]' :
+                        item.required ? 'border-red-500/40' :
+                        item.niceToHave ? 'border-yellow-500/30' : 'border-white/10'
+                      }`}
                     >
-                       <div className="flex items-center gap-3">
-                          <div className="text-purple-400 font-black text-xl bg-purple-500/10 h-10 w-10 shrink-0 rounded-lg border border-purple-500/20 shadow-inner flex items-center justify-center transition-all group-hover:bg-purple-500/20 group-hover:scale-105">
-                             {index + 1}
-                          </div>
-                          
-                          <div className="flex-1">
-                             <input 
-                               type="text"
-                               value={d}
-                               onChange={(e) => updateConstraint(d, e.target.value, index)}
-                               placeholder="Ex: Data Evenimentului"
-                               className="w-full bg-transparent font-bold text-white text-base focus:outline-none focus:text-purple-300 focus:border-b focus:border-purple-500/30 pb-1"
-                             />
+                      <div className="flex items-center gap-3">
+                        {/* Index badge */}
+                        <div className={`font-black text-lg h-10 w-10 shrink-0 rounded-lg border shadow-inner flex items-center justify-center transition-all group-hover:scale-105 ${
+                          item.required ? 'text-red-400 bg-red-500/10 border-red-500/20 group-hover:bg-red-500/20' :
+                          item.niceToHave ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20 group-hover:bg-yellow-500/20' :
+                          'text-gray-500 bg-white/5 border-white/10'
+                        }`}>
+                          {index + 1}
+                        </div>
+
+                        {/* Field name */}
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => updateConstraintName(item.name, e.target.value, index)}
+                            placeholder="Ex: Data Evenimentului"
+                            className="w-full bg-transparent font-bold text-white text-base focus:outline-none focus:text-purple-300 focus:border-b focus:border-purple-500/30 pb-1"
+                          />
+                        </div>
+
+                        {/* Two checkboxes */}
+                        <div className="flex gap-4 items-center shrink-0">
+                          {/* Obligatoriu */}
+                          <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => toggleRequired(index)} title="Fără el nu se confirmă rezervarea">
+                            <span className="text-[9px] text-red-400 font-bold uppercase leading-none tracking-wide">Obligatoriu</span>
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                              item.required
+                                ? 'bg-red-500 border-red-400 shadow-lg shadow-red-500/40'
+                                : 'border-red-500/30 bg-black/20 hover:border-red-400/70'
+                            }`}>
+                              {item.required && <span className="text-white text-[11px] font-black leading-none">✓</span>}
+                            </div>
                           </div>
 
-                          <div className="flex flex-col gap-1 items-center shrink-0 opacity-20 group-hover:opacity-100 transition-opacity">
-                            <span className="text-[10px] text-gray-400 uppercase tracking-widest leading-none">Drag</span>
-                            <span className="text-2xl text-gray-400 rotate-90 scale-y-[2]">॥</span>
+                          {/* Bine de Avut */}
+                          <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => toggleNiceToHave(index)} title="Colectat dacă posibil, nu blochează">
+                            <span className="text-[9px] text-yellow-400 font-bold uppercase leading-none tracking-wide">Bine Avut</span>
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                              item.niceToHave
+                                ? 'bg-yellow-500 border-yellow-400 shadow-lg shadow-yellow-500/40'
+                                : 'border-yellow-500/30 bg-black/20 hover:border-yellow-400/70'
+                            }`}>
+                              {item.niceToHave && <span className="text-white text-[11px] font-black leading-none">✓</span>}
+                            </div>
                           </div>
-                          
-                          <button onClick={() => removeConstraint(index)} className="text-red-400/50 hover:text-red-400 px-3 py-1 text-2xl font-light hover:bg-red-500/10 rounded-lg transition-all" title="Șterge">×</button>
-                       </div>
+                        </div>
 
-                       <div className="ml-12 pl-3 border-l-2 border-white/5 flex flex-col gap-2 mt-1">
+                        {/* Drag handle */}
+                        <div className="flex flex-col gap-1 items-center shrink-0 opacity-20 group-hover:opacity-100 transition-opacity">
+                          <span className="text-[10px] text-gray-400 uppercase tracking-widest leading-none">Drag</span>
+                          <span className="text-2xl text-gray-400 rotate-90 scale-y-[2]">॥</span>
+                        </div>
+
+                        <button onClick={() => removeConstraint(index)} className="text-red-400/50 hover:text-red-400 px-3 py-1 text-2xl font-light hover:bg-red-500/10 rounded-lg transition-all" title="Șterge">×</button>
+                      </div>
+
+                      {/* Custom prompt */}
+                      <div className="ml-12 pl-3 border-l-2 border-white/5 flex flex-col gap-2 mt-1">
                         <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Tonul (Formula EXACTĂ folosită de AI pentru a întreba):
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span> Tonul (Formula EXACTĂ folosită de AI pentru a întreba):
                         </span>
-                        <input type="text" 
-                          value={editCustomPrompts[d] || ""} 
-                          onChange={e => handleCustomPromptChange(d, e.target.value)}
+                        <input type="text"
+                          value={editCustomPrompts[item.name] || ""}
+                          onChange={e => handleCustomPromptChange(item.name, e.target.value)}
                           className="w-full bg-black/30 border border-white/5 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-400/50 focus:bg-emerald-900/10 transition-all text-emerald-100 placeholder:text-gray-600 shadow-inner"
-                          placeholder={`ex: Vă rog să imi spuneti ${d}...`}
+                          placeholder={`ex: Vă rog să imi spuneti ${item.name}...`}
                         />
-                       </div>
+                      </div>
                     </div>
                   ))}
-                  {editDetaliiList.length === 0 && <p className="text-sm text-[var(--color-dim)] italic text-center py-4 bg-black/20 rounded-xl border border-dashed border-white/10">Nicio constrângere. AI-ul nu va cere detalii suplimentare pentru acest rol. Adaugă una folosind butonul de mai jos.</p>}
+                  {constraintItems.length === 0 && (
+                    <p className="text-sm text-[var(--color-dim)] italic text-center py-4 bg-black/20 rounded-xl border border-dashed border-white/10">
+                      Nicio constrângere. AI-ul nu va cere detalii suplimentare pentru acest rol.
+                    </p>
+                  )}
                 </div>
-                
+
                 <button onClick={addConstraint} className="w-full py-3.5 mt-2 border-2 border-dashed border-purple-500/30 rounded-xl text-purple-400 font-bold hover:bg-purple-500/10 hover:border-purple-500/50 transition-all flex items-center justify-center gap-2 group shadow-sm">
-                   <span className="text-xl group-hover:scale-125 transition-transform">+</span> Adaugă o Nouă Constrângere
+                  <span className="text-xl group-hover:scale-125 transition-transform">+</span> Adaugă o Nouă Constrângere
                 </button>
               </div>
             </div>

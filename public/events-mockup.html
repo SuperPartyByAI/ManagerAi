@@ -138,11 +138,11 @@ body { font-family: 'Inter', sans-serif; background: #0a0b10; color: #e1e4eb; mi
 <script>
 const mainDb = supabase.createClient(
   'https://jrfhprnuxxfwkwjwdsez.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpyZmhwcm51eHhmd2t3andkc2V6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzAwMjIzMiwiZXhwIjoyMDg4NTc4MjMyfQ.0SoUFRVD3PyQg45QKvBM0yDoGJMNrsV-1KyGX0TA4yI'
+  '[REDACTED_SECRET]'
 );
 const vertexDb = supabase.createClient(
   'https://yvfhqadfmjgbzetanfxs.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2ZmhxYWRmbWpnYnpldGFuZnhzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzY2ODg2MywiZXhwIjoyMDg5MjQ0ODYzfQ.b99azJ4MhjLD7c7MXBdABhCIKVp3JWFSyrNSdpE5hZk'
+  '[REDACTED_SECRET]'
 );
 
 const skip = p => !p || p.startsWith('+40700') || /FIX|PROOF|TEST|DEMO/i.test(p);

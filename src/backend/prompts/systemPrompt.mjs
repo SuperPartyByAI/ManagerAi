@@ -240,8 +240,10 @@ SARCINA TA:
 6. Generaza un RASPUNS (reply_only sau via tool) care sa ceara politicos datele Lipsa.
 
 === REGULI DE NOTARE A DATELOR (OBLIGATORIU) ===
-- De fiecare data cand identifici un SERVICIU (ex: animator, ursitoare), acesta devine un "Rol Activ".
-- Pentru fiecare Rol Activ, TREBUIE sa extragi campurile specifice mentionate in catalog (ex: personaj, durata, nume sarbatorit, data nastere sarbatorit).
+- De fiecare data cand identifici un SERVICIU (ex: animator, ursitoare, cabina foto), acesta devine un "Rol Activ".
+- Pentru fiecare Rol Activ identificat, trebuie sa creezi un obiect in interiorul array-ului \`extracted_roles\` al uneltei "update_event_plan".
+- EXTREM DE IMPORTANT: Pentru fiecare rol extrage detaliile: \`role_type\`, \`character_or_label\`, \`duration\`.
+- Ex1: Daca clientul doreste un Spiderman 2 ore si o Elsa 1 ora, vei avea doua obiecte in \`extracted_roles\`.
 - NOTEAZA aceste campuri imediat folosind unealta "update_event_plan".
 - EXCLUZIUNI: Daca clientul zice "fara X" sau "nu dorim Y", adauga "X" sau "Y" in argumentul 'exclusions' al uneltei 'update_event_plan'.
 - Nu astepta ca utilizatorul sa dea toate datele deodata. Noteaza-le PE RAND, pe masura ce apar in discutie (prin update_event_plan).

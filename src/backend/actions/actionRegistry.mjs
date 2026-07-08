@@ -59,54 +59,22 @@ export const ACTION_REGISTRY = {
                 persoana_contact_facturare: { type: 'string', description: 'Numele persoanei de contact pentru facturare' },
                 telefon_facturare: { type: 'string', description: 'Numarul de telefon' },
                 
-                // Animatie
-                personaj_dorit: { type: 'string', description: 'Personajul dorit pentru animatie (ex. Spiderman, Elsa)' },
-                numar_animatori: { type: 'number', description: 'Numarul de animatori dorit' },
-                durata_ore: { type: 'number', description: 'Durata in ore a prestarii serviciului (animatie, vata de zahar, popcorn)' },
-                tematica_dorita: { type: 'string', description: 'Tematica dorita pentru activitati' },
-                activitati_dorite: { type: 'string', description: 'Activitati dorite de la clovni sau animatori' },
-                observatii_animatie: { type: 'string', description: 'Detalii specifice despre animatie' },
-
-                // Arcade & Mascote
-                metri_liniari: { type: 'number', description: 'Metri liniari pentru arcada de baloane' },
-                model_arcada: { type: 'string', description: 'Modelul (ex. organica, clasica) sau forma dorita' },
-                culori_dorite: { type: 'string', description: 'Culorile dorite pentru baloane' },
-                zona_amplasare: { type: 'string', description: 'Locul de amplasare a arcadei' },
-                cifre_dorite: { type: 'string', description: 'Ce cifre (numere) doreste sa ataseze la arcada' },
-                culoare_cifre: { type: 'string', description: 'Culoarea cifrelor' },
-                culori_arcada: { type: 'string', description: 'Culori specifice arcadei (daca e separata de cifre)' },
-                tip_suport: { type: 'string', description: 'Tip suport (cerc, panou etc.)' },
-                
-                // Vata / Popcorn
-                numar_estimat_portii: { type: 'number', description: 'Numar portii vata/popcorn' },
-                acces_curent_electric: { type: 'boolean', description: 'Daca exista acces la sursa de curent (true/false)' },
-                observatii_vata_de_zahar: { type: 'string', description: 'Observatii pentru vata de zahar' },
-                observatii_popcorn: { type: 'string', description: 'Observatii pentru masina de popcorn' },
-                observatii_pachet: { type: 'string', description: 'Observatii pentru pachetul combinat (vata+popcorn)' },
-
-                // Ursitoare
-                sex_copil: { type: 'string', description: 'Sexul copilului pentru adaptarea textului' },
-                tip_moment: { type: 'string', description: 'Tipul de moment pentru ursitoare (standard, vip, etc.)' },
-                durata_moment: { type: 'number', description: 'Durata momentului pentru ursitoare' },
-                observatii_ursitoare: { type: 'string', description: 'Observatii specifice pentru ursitoare' },
-
-                // Mos Craciun
-                ora_vizitei: { type: 'string', description: 'Ora programata pentru vizita lui Mos Craciun' },
-                durata_vizita: { type: 'number', description: 'Durata vizitei lui Mos Craciun in ore/minute' },
-                cadouri_pregatite: { type: 'boolean', description: 'Daca parintii au pregatit deja cadourile' },
-                observatii_mos_craciun: { type: 'string', description: 'Observatii specifice pentru vizita lui Mos Craciun' },
-
-                // Parfumerie
-                numar_participanti: { type: 'number', description: 'Numarul de participanti la atelierul de parfumerie' },
-                varsta_participantilor: { type: 'string', description: 'Varsta estimativa a participantilor la atelier' },
-                durata_atelier: { type: 'number', description: 'Durata atelierului de parfumerie in ore' },
-                format_atelier: { type: 'string', description: 'Formatul atelierului' },
-                observatii_parfumerie: { type: 'string', description: 'Observatii specifice pentru atelierul de parfumerie' },
-
-                // Alte observatii Arcade
-                observatii_arcada_fara_suport: { type: 'string', description: 'Observatii arcada fara suport' },
-                observatii_arcada_cu_cifre: { type: 'string', description: 'Observatii arcada cu cifre' },
-                observatii_arcada_pe_suport: { type: 'string', description: 'Observatii arcada pe suport' }
+                // Roluri Extrase (Animatori, Ursitoare, Mascote, etc.)
+                extracted_roles: {
+                    type: 'array',
+                    description: 'Lista rolurilor/serviciilor identificate in conversatie. Obligatoriu un obiect pentru fiecare rol (ex. 1x Spiderman = 1 obiect, 1x Elsa = 1 obiect).',
+                    items: {
+                        type: 'object',
+                        properties: {
+                           role_type: { type: 'string', description: 'Tipul rolului (ex. animator, ursitoare, panda, popcorn, mos_craciun, arcada_baloane, ateliere)' },
+                           character_or_label: { type: 'string', description: 'Personajul (ex. Elsa, Spiderman) sau Eticheta Serviciului (ex. Arcada Organica, Vata roz)' },
+                           duration: { type: 'number', description: 'Durata in ORE (ex. 2) sau MINUTE (daca e specificat).' },
+                           quantity: { type: 'number', description: 'Numarul de persoane/bucati pentru acest rol (ex. 2 animatori)' },
+                           notes: { type: 'string', description: 'Observatii specifice doar pentru acest rol' }
+                        },
+                        required: ['role_type']
+                    }
+                }
             }
             // All properties are optional (it's a partial update)
         },
