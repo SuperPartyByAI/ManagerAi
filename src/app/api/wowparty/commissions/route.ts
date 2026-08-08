@@ -3,6 +3,14 @@ import { jsonError, requireSuperPartyUser, SuperPartyApiError } from "@/lib/supe
 export const dynamic = "force-dynamic";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function clientAlias(client: { id: unknown; public_alias?: unknown; client_alias?: unknown; alias_index?: unknown }) {
+  return String(client.public_alias || client.client_alias || `Client #${client.alias_index || String(client.id).slice(0, 4)}`);
+}
+
+function isOperationalClient(alias: string) {
+  return !/(^|[\s_-])(e2e|test|tester|audit|auditor|dummy|robot|proof|seed|smoke|upsert)([\s_-]|$)/i.test(alias);
+}
+
 async function commissionClients(auth: Awaited<ReturnType<typeof requireSuperPartyUser>>) {
   const [{ data: clients, error: clientError }, { data: overrides, error: overrideError }, { data: setting, error: settingError }, { data: events, error: eventsError }] = await Promise.all([
     auth.admin.from("clients").select("id, public_alias, client_alias, alias_index, created_at").or("brand_key.eq.wowparty,brand.eq.wowparty").order("updated_at", { ascending: false }).limit(500),
@@ -29,7 +37,7 @@ async function commissionClients(auth: Awaited<ReturnType<typeof requireSuperPar
       const stat = stats.get(String(client.id)) || { count: 0, total: 0 };
       return {
         id: client.id,
-        alias: client.public_alias || client.client_alias || `Client #${client.alias_index || String(client.id).slice(0, 4)}`,
+        alias: clientAlias(client),
         commissionRate: Number(override?.commission_rate ?? defaultRate),
         isPreferred: Boolean(override),
         reason: override?.reason || "",
@@ -37,6 +45,11 @@ async function commissionClients(auth: Awaited<ReturnType<typeof requireSuperPar
         eventCount: stat.count,
         totalValue: stat.total,
       };
+    }).filter((client) => isOperationalClient(client.alias)).sort((left, right) => {
+      const byActivity = Number(right.eventCount > 0) - Number(left.eventCount > 0);
+      if (byActivity) return byActivity;
+      if (right.eventCount !== left.eventCount) return right.eventCount - left.eventCount;
+      return left.alias.localeCompare(right.alias, "ro");
     }),
   };
 }
@@ -60,8 +73,9 @@ export async function POST(request: Request) {
     const action = String(body?.action || "save");
     if (!UUID_RE.test(clientId)) throw new SuperPartyApiError("Client invalid.", 400);
 
-    const { data: client, error: clientError } = await auth.admin.from("clients").select("id").eq("id", clientId).or("brand_key.eq.wowparty,brand.eq.wowparty").maybeSingle();
+    const { data: client, error: clientError } = await auth.admin.from("clients").select("id, public_alias, client_alias, alias_index").eq("id", clientId).or("brand_key.eq.wowparty,brand.eq.wowparty").maybeSingle();
     if (clientError || !client) throw new SuperPartyApiError("Clientul nu aparține WowParty.", 404);
+    if (!isOperationalClient(clientAlias(client))) throw new SuperPartyApiError("Conturile de test nu pot primi comisioane preferențiale.", 400);
 
     if (action === "reset") {
       const { error } = await auth.admin.from("client_commission_overrides").delete().eq("client_id", clientId);
