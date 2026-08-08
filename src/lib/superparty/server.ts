@@ -1,4 +1,6 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 export const SUPERPARTY_SLUG = "wowparty";
 export const GM_EMAILS = new Set([
@@ -44,6 +46,31 @@ function bearer(request: Request) {
   return match?.[1]?.trim() || "";
 }
 
+async function cookieIdentity() {
+  const { url, anon } = env();
+  const cookieStore = await cookies();
+  const client = createServerClient(url, anon, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(values) {
+        try {
+          values.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        } catch {
+          // A read-only route may not be allowed to refresh cookies. Middleware handles it.
+        }
+      },
+    },
+  });
+  const { data: sessionData } = await client.auth.getSession();
+  const token = sessionData.session?.access_token || "";
+  if (!token) return null;
+  const { data: userData, error } = await client.auth.getUser(token);
+  if (error || !userData.user) return null;
+  return { token, user: userData.user };
+}
+
 export type SuperPartyAuth = {
   user: User;
   token: string;
@@ -55,16 +82,18 @@ export type SuperPartyAuth = {
 };
 
 export async function requireSuperPartyUser(request: Request): Promise<SuperPartyAuth> {
-  const token = bearer(request);
-  if (!token) throw new SuperPartyApiError("Sesiunea a expirat. Autentifică-te din nou.", 401);
-
   const admin = adminClient();
-  const { data: authData, error: authError } = await admin.auth.getUser(token);
-  if (authError || !authData.user) {
-    throw new SuperPartyApiError("Sesiunea a expirat. Autentifică-te din nou.", 401);
+  let token = bearer(request);
+  let user: User | null = null;
+  if (token) {
+    const { data: authData, error: authError } = await admin.auth.getUser(token);
+    if (!authError) user = authData.user;
+  } else {
+    const identity = await cookieIdentity();
+    token = identity?.token || "";
+    user = identity?.user || null;
   }
-
-  const user = authData.user;
+  if (!token || !user) throw new SuperPartyApiError("Sesiunea a expirat. Autentifică-te din nou.", 401);
   const email = String(user.email || "").toLocaleLowerCase("ro-RO");
   const isGm = GM_EMAILS.has(email);
   const { data: platform, error: platformError } = await admin

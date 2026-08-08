@@ -120,6 +120,7 @@ export default function SuperPartyManager() {
       setTeamManage(Boolean(teamData.canManage));
       setIsGm(Boolean(teamData.isGm || walletData.wallet?.is_gm));
       setWallet(walletData.wallet || {});
+      setAuthenticated(true);
       setError("");
     } catch (reason) {
       const apiError = reason as Error & { status?: number };
@@ -130,7 +131,10 @@ export default function SuperPartyManager() {
 
   useEffect(() => {
     const supabase = superPartyBrowserClient();
-    supabase.auth.getSession().then(({ data }) => { const ok = Boolean(data.session); setAuthenticated(ok); if (ok) loadCore(); else setLoading(false); });
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) { setAuthenticated(true); void loadCore(); }
+      else void loadCore(); // Existing portal sessions are securely resolved from HttpOnly cookies by the API.
+    });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { setAuthenticated(Boolean(session)); if (session) loadCore(true); });
     return () => listener.subscription.unsubscribe();
   }, [loadCore]);
