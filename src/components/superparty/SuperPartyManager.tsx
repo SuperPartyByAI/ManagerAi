@@ -139,7 +139,8 @@ export default function SuperPartyManager() {
       setIsGm(Boolean(teamData.isGm || walletData.wallet?.is_gm));
       setWallet(walletData.wallet || {});
       setAuthenticated(true);
-      setError("");
+      const whatsappConnected = (inboxData.sessions || []).some((session: { status?: string }) => /^(connected|online|open)$/i.test(String(session.status || "")));
+      setError(whatsappConnected ? "" : "WhatsApp WowParty este deconectat. Inboxul rămâne disponibil doar pentru consultare până la scanarea QR.");
     } catch (reason) {
       const apiError = reason as Error & { status?: number };
       if (apiError.status === 401) setAuthenticated(false);
