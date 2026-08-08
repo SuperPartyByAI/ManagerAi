@@ -7,6 +7,13 @@ function numberParam(value: string | null, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function isOperationalEvent(event: Record<string, unknown>) {
+  const searchable = [event.title, event.client_alias, event.location_text, JSON.stringify(event.services || {})]
+    .map((value) => String(value || ""))
+    .join(" ");
+  return !/(^|[^a-z0-9])(e2e|test|tester|audit|dummy|seed|smoke)([^a-z0-9]|$)/i.test(searchable);
+}
+
 export async function GET(request: Request) {
   try {
     const auth = await requireSuperPartyUser(request);
@@ -37,7 +44,7 @@ export async function GET(request: Request) {
     });
     if (error) throw error;
 
-    const events = data || [];
+    const events = ((data || []) as Array<Record<string, unknown>>).filter(isOperationalEvent);
     const counters = events.reduce((acc: Record<string, number>, event: Record<string, unknown>) => {
       const bucket = String(event.period_bucket || "unscheduled");
       acc[bucket] = (acc[bucket] || 0) + 1;
