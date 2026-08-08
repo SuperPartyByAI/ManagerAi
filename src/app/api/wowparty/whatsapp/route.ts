@@ -8,7 +8,10 @@ const SESSION_LABEL = "WowParty";
 function baileysConfig() {
   return {
     baseUrl: process.env.BAILEYS_ENGINE_URL || "http://127.0.0.1:3002",
-    apiKey: process.env.BAILEYS_API_KEY || "",
+    // Production already uses WA_API_KEY for message dispatch. Keep the
+    // management endpoint on the same internal credential while accepting the
+    // explicit Baileys name for newer installations.
+    apiKey: process.env.WA_API_KEY || process.env.BAILEYS_API_KEY || "",
   };
 }
 
