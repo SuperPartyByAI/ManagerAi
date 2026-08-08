@@ -40,8 +40,22 @@ function money(value: unknown) { return new Intl.NumberFormat("ro-RO", { maximum
 function time(value?: string | null) { return value ? value.slice(0, 5) : "—"; }
 function shortTime(value?: string | null) { return value ? new Intl.DateTimeFormat("ro-RO", { hour: "2-digit", minute: "2-digit" }).format(new Date(value)) : ""; }
 function initials(value: string) { const clean = value.replace(/^Client\s*/i, "").replace("#", "").trim(); return clean.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "SP"; }
-function colorFor(value: string) { return ["blue", "coral", "violet", "mint"][Math.abs([...value].reduce((sum, char) => sum + char.charCodeAt(0), 0)) % 4]; }
-function eventServices(event: EventCard) { const bag = event.services || {}; const values = [...(Array.isArray(bag.services) ? bag.services : []), ...(Array.isArray(bag.characters) ? bag.characters : [])]; return [...new Set(values.map(String).filter(Boolean))]; }
+function colorFor(value: unknown) { const key = String(value ?? "superparty"); return ["blue", "coral", "violet", "mint"][Math.abs([...key].reduce((sum, char) => sum + char.charCodeAt(0), 0)) % 4]; }
+function serviceLabel(value: unknown) {
+  if (typeof value === "string" || typeof value === "number") return String(value).trim();
+  if (!value || typeof value !== "object") return "";
+  const item = value as Record<string, unknown>;
+  return String(item.name || item.label || item.title || item.service || item.character || item.type || "").trim();
+}
+function eventServices(event: EventCard) {
+  const bag = event.services;
+  const values = Array.isArray(bag)
+    ? bag
+    : bag && typeof bag === "object"
+      ? [...(Array.isArray(bag.services) ? bag.services : []), ...(Array.isArray(bag.characters) ? bag.characters : []), ...(!("services" in bag) && !("characters" in bag) ? Object.values(bag) : [])]
+      : [];
+  return [...new Set(values.map(serviceLabel).filter(Boolean))];
+}
 function dateParts(value?: string | null) {
   if (!value) return { day: "—", month: "FĂRĂ", weekday: "DATĂ", long: "Dată necompletată" };
   const date = new Date(`${value}T12:00:00`);
