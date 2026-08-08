@@ -4,7 +4,10 @@ export const dynamic = "force-dynamic";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function clientAlias(client: { id: unknown; public_alias?: unknown; client_alias?: unknown; alias_index?: unknown }) {
-  return String(client.public_alias || client.client_alias || `Client #${client.alias_index || String(client.id).slice(0, 4)}`);
+  const raw = String(client.public_alias || client.client_alias || "").trim();
+  const fallback = `WowParty ${client.alias_index || String(client.id).slice(0, 4).toUpperCase()}`;
+  if (!raw || /@(?:s\.)?whatsapp\.net/i.test(raw) || /^\+?\d{10,}(?:[\s_-]|$)/.test(raw)) return fallback;
+  return raw;
 }
 
 function isOperationalClient(alias: string) {
@@ -12,22 +15,43 @@ function isOperationalClient(alias: string) {
 }
 
 async function commissionClients(auth: Awaited<ReturnType<typeof requireSuperPartyUser>>) {
-  const [{ data: clients, error: clientError }, { data: overrides, error: overrideError }, { data: setting, error: settingError }, { data: events, error: eventsError }] = await Promise.all([
+  const [{ data: taggedClients, error: clientError }, { data: overrides, error: overrideError }, { data: setting, error: settingError }, { data: events, error: eventsError }, { data: bookings, error: bookingError }] = await Promise.all([
     auth.admin.from("clients").select("id, public_alias, client_alias, alias_index, created_at").or("brand_key.eq.wowparty,brand.eq.wowparty").order("updated_at", { ascending: false }).limit(500),
     auth.admin.from("client_commission_overrides").select("client_id, commission_rate, reason, updated_at"),
     auth.admin.from("commission_settings").select("default_rate").eq("id", 1).maybeSingle(),
     auth.admin.from("events").select("client_id, price_agreed, budget_estimate").eq("business_id", "wowparty").eq("is_test", false),
+    auth.admin.from("bookings").select("source_client_id, final_price").ilike("brand_id", "wowparty").not("source_client_id", "is", null).limit(2000),
   ]);
-  const firstError = clientError || overrideError || settingError || eventsError;
+  const firstError = clientError || overrideError || settingError || eventsError || bookingError;
   if (firstError) throw firstError;
+  const activeClientIds = [...new Set([
+    ...(events || []).map((event) => String(event.client_id || "")),
+    ...(bookings || []).map((booking) => String(booking.source_client_id || "")),
+  ].filter(UUID_RE.test.bind(UUID_RE)))];
+  const taggedById = new Map((taggedClients || []).map((client) => [String(client.id), client]));
+  const missingClientIds = activeClientIds.filter((id) => !taggedById.has(id));
+  const { data: activeClients, error: activeClientError } = missingClientIds.length
+    ? await auth.admin.from("clients").select("id, public_alias, client_alias, alias_index, created_at").in("id", missingClientIds)
+    : { data: [], error: null };
+  if (activeClientError) throw activeClientError;
+  const clients = [...taggedById.values(), ...(activeClients || [])];
   const defaultRate = Number(setting?.default_rate || 18);
   const overrideByClient = new Map((overrides || []).map((row) => [String(row.client_id), row]));
   const stats = new Map<string, { count: number; total: number }>();
   for (const event of events || []) {
+    if (!event.client_id) continue;
     const id = String(event.client_id);
     const current = stats.get(id) || { count: 0, total: 0 };
     current.count += 1;
     current.total += Number(event.price_agreed ?? event.budget_estimate ?? 0);
+    stats.set(id, current);
+  }
+  for (const booking of bookings || []) {
+    if (!booking.source_client_id) continue;
+    const id = String(booking.source_client_id);
+    const current = stats.get(id) || { count: 0, total: 0 };
+    current.count += 1;
+    current.total += Number(booking.final_price ?? 0);
     stats.set(id, current);
   }
   return {
@@ -73,8 +97,17 @@ export async function POST(request: Request) {
     const action = String(body?.action || "save");
     if (!UUID_RE.test(clientId)) throw new SuperPartyApiError("Client invalid.", 400);
 
-    const { data: client, error: clientError } = await auth.admin.from("clients").select("id, public_alias, client_alias, alias_index").eq("id", clientId).or("brand_key.eq.wowparty,brand.eq.wowparty").maybeSingle();
-    if (clientError || !client) throw new SuperPartyApiError("Clientul nu aparține WowParty.", 404);
+    const { data: client, error: clientError } = await auth.admin.from("clients").select("id, public_alias, client_alias, alias_index, brand_key, brand").eq("id", clientId).maybeSingle();
+    if (clientError || !client) throw new SuperPartyApiError("Clientul nu a fost găsit.", 404);
+    const isTaggedWowParty = [client.brand_key, client.brand].some((value) => String(value || "").toLowerCase() === "wowparty");
+    if (!isTaggedWowParty) {
+      const [{ count: eventCount, error: eventLinkError }, { count: bookingCount, error: bookingLinkError }] = await Promise.all([
+        auth.admin.from("events").select("id", { count: "exact", head: true }).eq("client_id", clientId).eq("business_id", "wowparty").eq("is_test", false),
+        auth.admin.from("bookings").select("id", { count: "exact", head: true }).eq("source_client_id", clientId).ilike("brand_id", "wowparty"),
+      ]);
+      if (eventLinkError || bookingLinkError) throw eventLinkError || bookingLinkError;
+      if (!eventCount && !bookingCount) throw new SuperPartyApiError("Clientul nu aparține WowParty.", 404);
+    }
     if (!isOperationalClient(clientAlias(client))) throw new SuperPartyApiError("Conturile de test nu pot primi comisioane preferențiale.", 400);
 
     if (action === "reset") {
