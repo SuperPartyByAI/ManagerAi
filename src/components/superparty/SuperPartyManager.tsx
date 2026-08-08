@@ -56,6 +56,10 @@ function eventServices(event: EventCard) {
       : [];
   return [...new Set(values.map(serviceLabel).filter(Boolean))];
 }
+function clientGroupingKey(event: EventCard) {
+  if (event.client_id) return `id:${event.client_id}`;
+  return `alias:${String(event.client_alias || "client").trim().toLocaleLowerCase("ro")}`;
+}
 function dateParts(value?: string | null) {
   if (!value) return { day: "—", month: "FĂRĂ", weekday: "DATĂ", long: "Dată necompletată" };
   const date = new Date(`${value}T12:00:00`);
@@ -192,7 +196,7 @@ export default function SuperPartyManager() {
   });
   const unread = conversations.reduce((sum, item) => sum + Number(item.unread || 0), 0);
   const blocked = conversations.filter((item) => item.status === "blocked");
-  const currentClientEvents = selectedEvent ? events.filter((item) => item.client_id === selectedEvent.client_id) : [];
+  const currentClientEvents = selectedEvent ? events.filter((item) => clientGroupingKey(item) === clientGroupingKey(selectedEvent)) : [];
 
   if (!authenticated) return <main className="stage"><section className="app-shell auth-shell"><div className="login-brand"><div className="brand-mark"><span>S</span></div><small>SUPERPARTY MANAGER</small><h1>Un singur loc pentru clienți și evenimente</h1><p>Inbox protejat, detalii extrase de AI, echipă și comisioane.</p></div><form className="login-card" onSubmit={submitLogin}><label>Email<input type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} autoComplete="email" required/></label><label>Parolă<input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} autoComplete="current-password" required/></label>{error && <p className="form-error"><Icon name="alert" size={16}/>{error}</p>}<button disabled={loading}>{loading ? "Se conectează…" : "Intră în aplicație"}</button><small><Icon name="shield" size={14}/> Datele de contact ale clienților rămân ascunse.</small></form></section></main>;
   if (loading) return <main className="stage"><section className="app-shell loading-screen"><div className="brand-mark"><span>S</span></div><strong>Se încarcă SuperParty…</strong><span/></section></main>;
