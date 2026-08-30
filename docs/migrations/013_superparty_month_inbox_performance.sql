@@ -6,3 +6,6 @@ ON public.messages (created_at DESC NULLS LAST, id DESC)
 INCLUDE (conversation_id, session_id, content)
 WHERE direction = 'inbound'
   AND (is_test IS NULL OR is_test = false);
+
+-- This index duplicated idx_messages_conversation_created_at exactly.
+DROP INDEX IF EXISTS public.idx_messages_conversation_recent;
